@@ -1,5 +1,6 @@
 ---
-title: "FDS Final Project: Report #4"
+title: "Foundation of Data Science Final Project: Report #4"
 output: github_document
 ---
 
+Analysis of data from the Olympic Games.
