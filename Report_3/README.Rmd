@@ -1,5 +1,6 @@
 ---
-title: "FDS Final Project: Report #3"
+title: "Foundations of Data Science Final Project: Report #3"
 output: github_document
 ---
 
+Analysis uses data from the “The Movie DB”, https://www.themoviedb.org/.
