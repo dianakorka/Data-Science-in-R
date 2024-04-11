@@ -2,4 +2,4 @@
 title: "Foundations of Data Science Final Project: Report #2"
 output: github_document
 ---
-
+Analysis of open data on elected Swiss politicians and mandates.
