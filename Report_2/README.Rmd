@@ -1,5 +1,5 @@
 ---
-title: "FDS Final Project: Report #2"
+title: "Foundations of Data Science Final Project: Report #2"
 output: github_document
 ---
 
