@@ -3,3 +3,4 @@ title: "Foundations of Data Science Final Project: Report #1"
 output: github_document
 ---
 
+Analysis of scraped rental data from Geneva.
