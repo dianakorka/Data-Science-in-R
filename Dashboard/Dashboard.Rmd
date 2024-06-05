@@ -1,0 +1,77 @@
+---
+title: "Demo Dashboard"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: columns
+  'flexdashboard::flex_dashboard: orientation: columns': default
+---
+
+# Intro{.sidebar}
+
+This is a dashboard that contains several topics:
+
+- first
+- second
+- third
+
+# Plot of cars 
+
+## Column1
+
+### Cars box
+
+```{r}
+library(flexdashboard)
+plot(cars)
+```
+
+# Plot of mtcars 
+
+## Column2
+
+### Mtcars box
+
+```{r}
+library(dplyr)
+plot(select(mtcars, cyl, disp))
+```
+
+## Column3
+
+### Mtcars box rev
+
+```{r}
+library(dplyr)
+plot(select(mtcars, mpg, hp))
+```
+
+
+
+# Second plot of mtcars 
+
+## Column4
+
+### Mtcars box rev
+
+```{r}
+library(dplyr)
+plot(select(mtcars, mpg, hp))
+```
+
+## Column5
+
+### Main KPI {.value-box}
+
+```{r}
+valueBox(42, caption = "KPI value", icon="fa-tag", color="info")
+# > <span class="value-output" data-caption="Errors" data-icon="fa-random" data-color-accent="info">42</span>
+```
+
+### Other KPI as a gauge
+
+```{r}
+gauge(42, min = 0, max = 100, symbol = '%', gaugeSectors(
+  success = c(80, 100), warning = c(40, 79), danger = c(0, 39)
+))
+```
+
