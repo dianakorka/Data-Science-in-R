@@ -8,54 +8,150 @@ output:
 
 # Intro{.sidebar}
 
-This is a dashboard that contains several topics:
+This is a dashboard on a sample of sales data
 
-- first
-- second
-- third
+- overview
+- orders per continent
+- orders by manager
 
-# Plot of cars 
+# Overview 
 
 ## Column1
 
-### Cars box
 
-```{r}
+```{r message=FALSE, warning=FALSE}
+library(tibble)
+library(dplyr)
+library(prettydoc)
+library(readr)
+library(readxl)
+library(openxlsx)
 library(flexdashboard)
-plot(cars)
+library(ggplot2)
+
+sales_data_sample <- read_excel("~/Documents/R/sales_data_sample.xlsx", 
+    sheet = "sales_data_sample", skip = 3)
+
+sales_data_sample <- sales_data_sample %>% 
+  rename(quantity_ordered = `QUANTITY ORDERED`,
+         price_each = `PRICE EACH`,
+         country = COUNTRY,
+         dealsize = DEALSIZE) %>% 
+  mutate(continent = case_when(
+           # We will cover shorter ways to do long match lists like this later
+           country == "USA" ~ "North America",
+           country == "France" ~ "Europe",
+           country == "Norway" ~ "Europe",
+           country == "Australia" ~ "Oceania",
+           country == "Finland" ~ "Europe",
+           country == "Austria" ~ "Europe",
+           country == "UK" ~ "Europe", 
+           country == "Spain" ~ "Europe",
+           country == "Sweden" ~ "Europe",
+           country == "Singapore" ~ "Asia",
+           country == "Canada" ~ "North America",
+           country == "Japan" ~ "Asia",
+           country == "Italy" ~ "Europe",
+           country == "Denmark" ~ "Europe",
+           country == "Belgium" ~ "Europe",
+           country == "Philippines" ~ "Asia",
+           country == "Germany" ~ "Europe",
+           country == "Switzerland" ~ "Europe",
+           country == "Ireland" ~ "Europe"
+         )) %>% 
+  mutate(manager=case_when(
+           dealsize == "Small" ~ "Tim",
+           dealsize == "Medium" ~ "Olga",
+           TRUE ~ "Sonia"))
 ```
 
-# Plot of mtcars 
+### Total sales {.value-box}
+
+```{r}
+total_quantity <- 
+  sales_data_sample %>% 
+  summarise(total_sales = sum(quantity_ordered))
+
+valueBox(total_quantity, caption = "Total quantity ordered", icon="fa-tag", color="info")
+# > <span class="value-output" data-caption="Errors" data-icon="fa-random" data-color-accent="info">42</span>
+```
+### Each dot represents one sales point
+
+```{r}
+ggplot(data = sales_data_sample,
+       mapping = aes(x = quantity_ordered, 
+                     y = price_each,
+                     color = continent)) + 
+  geom_point() 
+```
+
+# Orders per continent 
 
 ## Column2
 
-### Mtcars box
+### Absolute
 
-```{r}
-library(dplyr)
-plot(select(mtcars, cyl, disp))
+```{r message=FALSE, warning=FALSE}
+
+n_of_order_per_continent <- 
+  sales_data_sample %>% 
+  group_by(continent, dealsize) %>% 
+  summarise(n_of_order = n()) %>% 
+  ungroup()
+
+ggplot(data = n_of_order_per_continent,
+       mapping = aes(x = continent,
+                     y = n_of_order,
+                     fill = dealsize)) +
+  geom_col()  +
+  labs(title = "Number of orders per continent",
+       subtitle = "Colors represent dealsizes")
 ```
 
 ## Column3
 
-### Mtcars box rev
+### Relative
 
-```{r}
-library(dplyr)
-plot(select(mtcars, mpg, hp))
+```{r message=FALSE, warning=FALSE}
+pct_n_of_order_per_continent <- 
+  n_of_order_per_continent %>% 
+  group_by(continent) %>% 
+  # Thanks to group_by, the sum() function will compute the sum for the continent
+  mutate(pct_n_of_order = n_of_order / sum(n_of_order)) %>% 
+  ungroup()
+
+ggplot(data = pct_n_of_order_per_continent,
+       mapping = aes(x = continent, 
+                     y = pct_n_of_order,
+                     fill = dealsize)) + 
+  geom_col() +
+  labs(title = "Relative number of orders per dealsize",
+       subtitle = "Colors represent dealsizes")
 ```
 
 
 
-# Second plot of mtcars 
+# Orders by manager 
 
 ## Column4
 
-### Mtcars box rev
+### Orders by manager
 
-```{r}
-library(dplyr)
-plot(select(mtcars, mpg, hp))
+```{r message=FALSE, warning=FALSE}
+
+n_of_order_per_manager <- 
+  sales_data_sample %>% 
+  group_by(manager, dealsize) %>% 
+  summarise(n_of_order = n()) %>% 
+  ungroup()
+
+ggplot(data = n_of_order_per_manager,
+       mapping = aes(x = manager,
+                     y = n_of_order,
+                     fill = dealsize)) +
+  geom_col()  +
+  labs(title = "Number of orders per manager",
+       subtitle = "Colors represent dealsizes")
 ```
 
 ## Column5
