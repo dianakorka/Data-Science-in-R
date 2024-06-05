@@ -1,3 +1,3 @@
 # Data-Science-in-R
 
-This includes 4 separate Rmarkdown projects.
+This includes several separate Rmarkdown projects.
