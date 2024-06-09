@@ -5,11 +5,10 @@ output: github_document
 
 # Final project 1
 
-The data doesn't come to you as a dataset, it comes to you as a website.
+The data source is a website. There is a model .csv sample of what the data looks like. The first challenge is to scrape data from the rental website indicated below to match the sample data. 
 
     https://epfl-exts.github.io/rental-scrape/
 
-Your first challenge is to write the code needed to scrape the data contained in it. To help you see what the end goal is, we placed a sample extract of the final dataset in your repository. The file has only 5 rows and is called sample_scraped_rental.csv.
 
 ```{r message=FALSE, warning=FALSE}
 library(tibble)
@@ -29,11 +28,11 @@ library(leaflet)
 
 ## Part 1
 
-Get the full dataset out of the site. Your code should end up with a tibble of a bit more than 600 rows and 9 columns. Make sure you take the time to convert each column to the right type and not all character.
+We should end up with a tibble of a bit more than 600 rows and 9 columns. I take the time to convert each column to the right type.
 
-Reading the data. I use the tools for scraping non-table data for each of the 9 variables. Then I bind the columns into a tibble and generate a row id with rowid_to_column()as maybe next time I will have more observations to scrape.
+For reading the data, I use the tools for scraping non-table data for each of the 9 variables. Then I bind the columns into a tibble and generate a row id with rowid_to_column() as maybe next time I will have more observations to scrape.
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 request<-GET("https://epfl-exts.github.io/rental-scrape/")
 
 content <- httr::content(request, as = "parsed")
@@ -101,9 +100,9 @@ glimpse(data)
 
 ## Part 2
 
-Create a scatterplot showing how prices evolve with living space of the flat.
+I create a scatterplot showing how prices evolve with living space of the flat.
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 data %>% 
   ggplot(mapping = aes(x=living_space, y=price))+
   geom_point()+
@@ -116,7 +115,7 @@ data %>%
 
 ## Part 3
 
-Create a bar plot showing the number of properties by postcode. Is this agency more "active" in certain areas?
+I create a bar plot showing the number of properties by postcode. Is this agency more "active" in certain areas?
 
 ```{r fig.width=9}
 data %>% 
@@ -136,9 +135,9 @@ data %>%
 
 ## Part 4
 
-Create a more complex scatterplot, showing how prices evolve with living space of the flat by postcode and by floor. You can use colors and/or facets to make the categories visible.
+I create a more complex scatterplot, showing how prices evolve with living space of the flat by postcode and by floor. Colors and/or facets make the categories visible.
 
-```{r fig.width=8}
+```{r fig.width=8, message=FALSE, warning=FALSE}
 data %>% 
   mutate(code=str_extract(location, "[1-9][0-9][0-9][0-9]")) %>% 
   mutate(code=as.numeric(code)) %>%
@@ -156,7 +155,10 @@ data %>%
 ```
 
 
-Can you conclude anything from it? Put your thoughts below your plot. Don't over think this: this is not so much about the quality of your analysis than checking that you can put a report together. For example, integrate the most expensive and least expensive mean postcode/floor combo in your text with inline code.
+Can we conclude anything from it? 
+
+
+
 
 ```{r}
 mexp_f<-data %>% 
@@ -170,6 +172,7 @@ mexp_f<-data %>%
   ungroup() %>% 
   top_n(1) %>% 
   pull(floor)
+
 
 mexp_p<-data %>% 
   mutate(code=str_extract(location, "[1-9][0-9][0-9][0-9]")) %>% 
@@ -212,6 +215,7 @@ lexp_p<-data %>%
 
 
 Generally the price increases with living surface. It seems to be a bit less expensive to live on the 1st and 4th floors on average. In the dataset there are more apartments available on the 1st, 2nd and 3rd floors. For surfaces with more than 100-150 m2 there is quite a bit more variability in the data, meaning the high prices for larger apartments depend on other factors than surface. Not all post codes are equally represented in the distribution by floors. The highest mean price was for floor `r mexp_f` and postcode `r mexp_p` and the lowest mean price was for floor `r lexp_f` and code `r lexp_p`.
+
 
 
 ## Part 5
@@ -361,12 +365,12 @@ longlat_tib<- longt %>%
   mutate(latt=as.numeric(latt))
 
 
-data8 %>% 
-  bind_cols(longlat_tib) %>% 
-  leaflet() %>% 
-  addTiles() %>% 
-  addMarkers(lng = ~ longt, lat = ~ latt, label = ~id, popup = ~location) %>% 
-  setView(6.1, 46.2, zoom=11)
+#data8 %>% 
+  #bind_cols(longlat_tib) %>% 
+  #leaflet() %>% 
+  #addTiles() %>% 
+  #addMarkers(lng = ~ longt, lat = ~ latt, label = ~id, popup = ~location) %>% 
+  #setView(6.1, 46.2, zoom=11)
 ```
 
 

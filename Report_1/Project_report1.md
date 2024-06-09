@@ -3,14 +3,11 @@ FDS Final Project: Report \#1
 
 # Final project 1
 
-The data doesn’t come to you as a dataset, it comes to you as a website.
+The data source is a website. There is a model .csv sample of what the
+data looks like. The first challenge is to scrape data from the rental
+website indicated below to match the sample data.
 
     https://epfl-exts.github.io/rental-scrape/
-
-Your first challenge is to write the code needed to scrape the data
-contained in it. To help you see what the end goal is, we placed a
-sample extract of the final dataset in your repository. The file has
-only 5 rows and is called sample\_scraped\_rental.csv.
 
 ``` r
 library(tibble)
@@ -30,14 +27,13 @@ library(leaflet)
 
 ## Part 1
 
-Get the full dataset out of the site. Your code should end up with a
-tibble of a bit more than 600 rows and 9 columns. Make sure you take the
-time to convert each column to the right type and not all character.
+We should end up with a tibble of a bit more than 600 rows and 9
+columns. I take the time to convert each column to the right type.
 
-Reading the data. I use the tools for scraping non-table data for each
-of the 9 variables. Then I bind the columns into a tibble and generate a
-row id with rowid\_to\_column()as maybe next time I will have more
-observations to scrape.
+For reading the data, I use the tools for scraping non-table data for
+each of the 9 variables. Then I bind the columns into a tibble and
+generate a row id with rowid_to_column() as maybe next time I will have
+more observations to scrape.
 
 ``` r
 request<-GET("https://epfl-exts.github.io/rental-scrape/")
@@ -82,11 +78,7 @@ availability <- content %>%
   rvest::html_nodes(css=".availability strong") %>% 
   rvest::html_text() %>% 
   parse_date_time(orders = "dmy")
-```
 
-    ## Warning: 402 failed to parse.
-
-``` r
 data <-bind_cols(location=location, 
                  price=price,   
                  price_w_currency=price_w_currency, 
@@ -105,39 +97,27 @@ data <-bind_cols(location=location,
   mutate(currency=str_replace(price_w_currency,"\\d\\d+" , "")) %>% 
   select(id, location, price, currency, objet_type, rooms, living_space, floor, availability, usable_surface) %>% 
   mutate(currency=str_trim(currency))
-```
 
-    ## Warning: NAs introduced by coercion
-
-    ## Warning: NAs introduced by coercion
-    
-    ## Warning: NAs introduced by coercion
-    
-    ## Warning: NAs introduced by coercion
-    
-    ## Warning: NAs introduced by coercion
-
-``` r
 glimpse(data)
 ```
 
-    ## Observations: 612
-    ## Variables: 10
-    ## $ id             <int> 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, ...
-    ## $ location       <chr> "Rue de la Terrassière 58, 1207 Genève", "Addre...
-    ## $ price          <dbl> 1900, 4500, 2100, 5500, 2340, 2895, 1980, NA, 3...
-    ## $ currency       <chr> "CHF", "CHF", "CHF", "CHF", "CHF", "CHF", "CHF"...
-    ## $ objet_type     <chr> "Apartment", "Apartment", "Apartment", "Single ...
-    ## $ rooms          <dbl> 3.0, 4.0, 4.0, 6.0, 4.0, 4.5, 4.0, 5.0, 4.0, 4....
-    ## $ living_space   <dbl> 63, 185, NA, 170, 73, NA, 73, 150, 117, 75, 104...
-    ## $ floor          <dbl> 4, NA, 50, 3, 1, 2, 11, 6, 5, 2, 6, 8, NA, NA, ...
-    ## $ availability   <dttm> 2018-10-01, 2018-08-01, 2018-08-01, NA, 2018-0...
-    ## $ usable_surface <dbl> NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA,...
+    ## Rows: 612
+    ## Columns: 10
+    ## $ id             <int> 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, …
+    ## $ location       <chr> "Rue de la Terrassière 58, 1207 Genève", "Address on re…
+    ## $ price          <dbl> 1900, 4500, 2100, 5500, 2340, 2895, 1980, NA, 3080, 201…
+    ## $ currency       <chr> "CHF", "CHF", "CHF", "CHF", "CHF", "CHF", "CHF", "Price…
+    ## $ objet_type     <chr> "Apartment", "Apartment", "Apartment", "Single house", …
+    ## $ rooms          <dbl> 3.0, 4.0, 4.0, 6.0, 4.0, 4.5, 4.0, 5.0, 4.0, 4.0, 5.0, …
+    ## $ living_space   <dbl> 63, 185, NA, 170, 73, NA, 73, 150, 117, 75, 104, NA, 97…
+    ## $ floor          <dbl> 4, NA, 50, 3, 1, 2, 11, 6, 5, 2, 6, 8, NA, NA, NA, 3, N…
+    ## $ availability   <dttm> 2018-10-01, 2018-08-01, 2018-08-01, NA, 2018-08-01, NA…
+    ## $ usable_surface <dbl> NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA,…
 
 ## Part 2
 
-Create a scatterplot showing how prices evolve with living space of the
-flat.
+I create a scatterplot showing how prices evolve with living space of
+the flat.
 
 ``` r
 data %>% 
@@ -150,14 +130,12 @@ data %>%
   theme_classic()
 ```
 
-    ## Warning: Removed 106 rows containing missing values (geom_point).
-
 ![](Project_report1_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
 ## Part 3
 
-Create a bar plot showing the number of properties by postcode. Is this
-agency more “active” in certain areas?
+I create a bar plot showing the number of properties by postcode. Is
+this agency more “active” in certain areas?
 
 ``` r
 data %>% 
@@ -178,9 +156,9 @@ data %>%
 
 ## Part 4
 
-Create a more complex scatterplot, showing how prices evolve with living
-space of the flat by postcode and by floor. You can use colors and/or
-facets to make the categories visible.
+I create a more complex scatterplot, showing how prices evolve with
+living space of the flat by postcode and by floor. Colors and/or facets
+make the categories visible.
 
 ``` r
 data %>% 
@@ -198,15 +176,9 @@ data %>%
   theme_light()
 ```
 
-    ## Warning: Removed 58 rows containing missing values (geom_point).
-
 ![](Project_report1_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
 
-Can you conclude anything from it? Put your thoughts below your plot.
-Don’t over think this: this is not so much about the quality of your
-analysis than checking that you can put a report together. For example,
-integrate the most expensive and least expensive mean postcode/floor
-combo in your text with inline code.
+Can we conclude anything from it?
 
 ``` r
 mexp_f<-data %>% 
@@ -222,6 +194,16 @@ mexp_f<-data %>%
   pull(floor)
 ```
 
+    ## Warning: There were 4 warnings in `summarise()`.
+    ## The first warning was:
+    ## ℹ In argument: `max_price = max(price, na.rm = TRUE)`.
+    ## ℹ In group 81: `floor = 3` and `code = 1223`.
+    ## Caused by warning in `max()`:
+    ## ! no non-missing arguments to max; returning -Inf
+    ## ℹ Run `dplyr::last_dplyr_warnings()` to see the 3 remaining warnings.
+
+    ## `summarise()` has grouped output by 'floor'. You can override using the
+    ## `.groups` argument.
     ## Selecting by min_price
 
 ``` r
@@ -238,6 +220,16 @@ mexp_p<-data %>%
   pull(code)
 ```
 
+    ## Warning: There were 4 warnings in `summarise()`.
+    ## The first warning was:
+    ## ℹ In argument: `max_price = max(price, na.rm = TRUE)`.
+    ## ℹ In group 81: `floor = 3` and `code = 1223`.
+    ## Caused by warning in `max()`:
+    ## ! no non-missing arguments to max; returning -Inf
+    ## ℹ Run `dplyr::last_dplyr_warnings()` to see the 3 remaining warnings.
+
+    ## `summarise()` has grouped output by 'floor'. You can override using the
+    ## `.groups` argument.
     ## Selecting by min_price
 
 ``` r
@@ -254,6 +246,16 @@ lexp_f<-data %>%
   pull(floor)
 ```
 
+    ## Warning: There were 4 warnings in `summarise()`.
+    ## The first warning was:
+    ## ℹ In argument: `max_price = max(price, na.rm = TRUE)`.
+    ## ℹ In group 81: `floor = 3` and `code = 1223`.
+    ## Caused by warning in `max()`:
+    ## ! no non-missing arguments to max; returning -Inf
+    ## ℹ Run `dplyr::last_dplyr_warnings()` to see the 3 remaining warnings.
+
+    ## `summarise()` has grouped output by 'floor'. You can override using the
+    ## `.groups` argument.
     ## Selecting by min_price
 
 ``` r
@@ -270,6 +272,16 @@ lexp_p<-data %>%
   pull(code)
 ```
 
+    ## Warning: There were 4 warnings in `summarise()`.
+    ## The first warning was:
+    ## ℹ In argument: `max_price = max(price, na.rm = TRUE)`.
+    ## ℹ In group 81: `floor = 3` and `code = 1223`.
+    ## Caused by warning in `max()`:
+    ## ! no non-missing arguments to max; returning -Inf
+    ## ℹ Run `dplyr::last_dplyr_warnings()` to see the 3 remaining warnings.
+
+    ## `summarise()` has grouped output by 'floor'. You can override using the
+    ## `.groups` argument.
     ## Selecting by min_price
 
 Generally the price increases with living surface. It seems to be a bit
@@ -307,7 +319,8 @@ data %>%
   theme_classic()
 ```
 
-    ## Warning: Removed 15 rows containing non-finite values (stat_boxplot).
+    ## Warning: Removed 15 rows containing non-finite outside the scale range
+    ## (`stat_boxplot()`).
 
 ![](Project_report1_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
@@ -331,7 +344,8 @@ data %>%
   theme_classic()
 ```
 
-    ## Warning: Removed 93 rows containing non-finite values (stat_boxplot).
+    ## Warning: Removed 93 rows containing non-finite outside the scale range
+    ## (`stat_boxplot()`).
 
 ![](Project_report1_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
 Similarly the mean surface of living was bigger for properties listed
@@ -354,7 +368,8 @@ data %>%
   ylim(0, 20)
 ```
 
-    ## Warning: Removed 223 rows containing non-finite values (stat_boxplot).
+    ## Warning: Removed 223 rows containing non-finite outside the scale range
+    ## (`stat_boxplot()`).
 
 ![](Project_report1_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
@@ -367,7 +382,7 @@ towards lower than 4 floor levels.
 In this question, use the same groups as above: flats for which
 addresses are only available on demand versus other flats. Make a table
 summarising group size, median, average, standard-deviation, minimum and
-maximum of variable price per square-meter (expressed in CHF/\(m^2\)).
+maximum of variable price per square-meter (expressed in CHF/$m^2$).
 Then use a t-test to compare the average price per square-meter for
 these 2 groups of flats.
 
@@ -387,11 +402,16 @@ data %>%
   kable()
 ```
 
-| req    |  no\_obs |  median\_ppsqm |  mean\_ppsqm |    std\_ppsqm |   min\_ppsqm |                                                                                                                                                                                                                                  max\_ppsqm |
-| :----- | -------: | -------------: | -----------: | ------------: | -----------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
-| 0      |      460 |       33.18466 |     39.81016 |    109.191737 |     8.301887 |                                                                                                                                                                                                                                  2180.00000 |
-| 1      |      152 |       33.33333 |     34.22823 |      9.459612 |    17.500000 |                                                                                                                                                                                                                                    71.42857 |
-| I note | that the | "address on re | quest" group | is smaller an | d with lower | variance. This needs to be factored in when writing the t-test below. Otherwise the two groups have very similar medians but quite different means. The difference in means may be explained by some outliers in the “address known” group. |
+| req | no_obs | median_ppsqm | mean_ppsqm |  std_ppsqm | min_ppsqm |  max_ppsqm |
+|:----|-------:|-------------:|-----------:|-----------:|----------:|-----------:|
+| 0   |    460 |     33.18466 |   39.81016 | 109.191737 |  8.301887 | 2180.00000 |
+| 1   |    152 |     33.33333 |   34.22823 |   9.459612 | 17.500000 |   71.42857 |
+
+I note that the “address on request” group is smaller and with lower
+variance. This needs to be factored in when writing the t-test below.
+Otherwise the two groups have very similar medians but quite different
+means. The difference in means may be explained by some outliers in the
+“address known” group.
 
 Now the t-test.
 
@@ -403,10 +423,10 @@ data %>%
   t_test(ppsqm ~ req, order = c("0", "1"), var.equal=FALSE)
 ```
 
-    ## # A tibble: 1 x 6
-    ##   statistic  t_df p_value alternative lower_ci upper_ci
-    ##       <dbl> <dbl>   <dbl> <chr>          <dbl>    <dbl>
-    ## 1     0.997  408.   0.319 two.sided      -5.42     16.6
+    ## # A tibble: 1 × 7
+    ##   statistic  t_df p_value alternative estimate lower_ci upper_ci
+    ##       <dbl> <dbl>   <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1     0.997  408.   0.319 two.sided       5.58    -5.42     16.6
 
 The t-test cannot reject the null hypothesis that the difference in
 means between the two groups is not significant (the p-value is quite
@@ -427,7 +447,7 @@ data %>%
   summarise(no_obs=n(), median_p=median(price, na.rm = TRUE), mean_p=mean(price, na.rm = TRUE), std_p=sd(price, na.rm = TRUE), min_p=min(price, na.rm = TRUE), max_p=max(price, na.rm = TRUE))
 ```
 
-    ## # A tibble: 2 x 7
+    ## # A tibble: 2 × 7
     ##   req   no_obs median_p mean_p std_p min_p max_p
     ##   <chr>  <int>    <dbl>  <dbl> <dbl> <dbl> <dbl>
     ## 1 0        460     3100  3658. 2531.    30 22800
@@ -440,10 +460,10 @@ data %>%
   t_test(price ~ req, order = c("0", "1"), var.equal=FALSE)
 ```
 
-    ## # A tibble: 1 x 6
-    ##   statistic  t_df       p_value alternative lower_ci upper_ci
-    ##       <dbl> <dbl>         <dbl> <chr>          <dbl>    <dbl>
-    ## 1     -6.06  233. 0.00000000552 two.sided     -2048.   -1043.
+    ## # A tibble: 1 × 7
+    ##   statistic  t_df       p_value alternative estimate lower_ci upper_ci
+    ##       <dbl> <dbl>         <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1     -6.06  233. 0.00000000552 two.sided     -1545.   -2048.   -1043.
 
 First looking at the standard statistics by group (with and without a
 listed address) I note that both the median and the mean are quite
@@ -502,8 +522,19 @@ longlat_tib<- longt %>%
   bind_rows() %>% 
   mutate(longt=as.numeric(longt)) %>% 
   mutate(latt=as.numeric(latt))
+```
 
+    ## Warning: There was 1 warning in `mutate()`.
+    ## ℹ In argument: `longt = as.numeric(longt)`.
+    ## Caused by warning:
+    ## ! NAs introduced by coercion
 
+    ## Warning: There was 1 warning in `mutate()`.
+    ## ℹ In argument: `latt = as.numeric(latt)`.
+    ## Caused by warning:
+    ## ! NAs introduced by coercion
+
+``` r
 #data8 %>% 
   #bind_cols(longlat_tib) %>% 
   #leaflet() %>% 
