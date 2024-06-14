@@ -1,9 +1,11 @@
 ---
 title: "FDS Final Project: Report #1"
-output: github_document
+output:
+  html_document:
+    df_print: paged
 ---
 
-# Final project 1
+# Analysis of rental data scraped from a website
 
 The data source is a website. There is a model .csv sample of what the data looks like. The first challenge is to scrape data from the rental website indicated below to match the sample data. 
 
@@ -365,12 +367,18 @@ longlat_tib<- longt %>%
   mutate(latt=as.numeric(latt))
 
 
-#data8 %>% 
-  #bind_cols(longlat_tib) %>% 
-  #leaflet() %>% 
-  #addTiles() %>% 
-  #addMarkers(lng = ~ longt, lat = ~ latt, label = ~id, popup = ~location) %>% 
-  #setView(6.1, 46.2, zoom=11)
+```
+
+
+```{r}
+library(tidyr)
+longlat_tib %>% 
+  drop_na() %>% 
+  bind_cols() %>% 
+  leaflet() %>% 
+  addTiles() %>% 
+  addMarkers(lng = ~ longt, lat = ~ latt) %>% 
+  setView(6.1, 46.2, zoom=11)
 ```
 
 
