@@ -1,0 +1,322 @@
+---
+title: "Inferential analysis"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Inferential analysis project
+
+## Part 1: T-test on Swiss Cows data
+
+```{r message=FALSE, warning=FALSE}
+library(readr)
+library(ggplot2)
+library(tidyr)
+library(tidyverse)
+library(infer)
+```
+
+```{r message=FALSE, warning=FALSE}
+swiss_cows_data <- read_csv("~/Documents/R/project4/swiss_cows_data.csv")
+
+glimpse(swiss_cows_data)
+```
+
+First let's produce a summary table with sample size, arithmetic mean, and standard deviation for each breed.
+
+```{r}
+swiss_cows_data %>% 
+  group_by(breed) %>% 
+  summarise(sample_size=n(), mean_weight=mean(weight), sd_weight=sd(weight)) %>% 
+  ungroup()
+```
+
+In this part I focus on the first 3 cows of each breed, selected in the tibble below.
+
+```{r}
+cows_03 <- swiss_cows_data %>% 
+  filter(num<=3)
+
+cows_03
+```
+
+Let's produce the summary table for the reduced sample.
+
+```{r}
+cows_03%>% 
+  group_by(breed) %>% 
+  summarise(sample_size=n(), mean_weight=mean(weight), sd_weight=sd(weight)) %>% 
+  ungroup()
+```
+
+Now let's do a t-test to compare the smaller sample mean to the full sample mean.
+
+```{r}
+my_test <- cows_03 %>% 
+  t_test(formula = weight~ breed,
+         order = c("Brown_Swiss", "Swiss_Red_Holstein"),
+         conf_level = 0.95)
+
+
+my_test
+```
+
+The last two elements lower_ci and upper_ci correspond to the lower and upper limits of the 95% confidence interval for the difference in average weight between the two breeds of cow. The CI contains 0 which means that the small sample cow_03 does not provide enough evidence that Swiss Browns are heavier.
+
+The p-value of `r my_test[3]`, being much higher than 0.05, confirms that the difference between the small sample and full sample means is not statistically significant at the 0.05 level (having chosen a confidence level of 95%).
+
+
+We can visualise the steps of the t-test process with the code below.
+
+
+```{r}
+
+cows_03 %>% 
+  specify(formula = weight ~ breed) %>%
+  hypothesize(null = 'independence') %>%
+  calculate(stat = "t") %>%
+  visualise(method = "theoretical") +
+  shade_p_value(obs_stat = my_test[1], direction = "both")
+
+```
+
+
+The area of the red region under the density curse is equal to the p-value obtained in the t-test, `r my_test[3]`. The red line corresponds to the value of the t-statistic `r my_test[1]`.
+
+
+## Part 2: T-test using only the full sample
+
+Here we redo the same exercise as above but for the full sample.
+
+
+
+```{r}
+my_test_all <- swiss_cows_data %>% 
+  t_test(formula = weight~ breed,
+         order = c("Brown_Swiss", "Swiss_Red_Holstein"),
+         conf_level = 0.95)
+
+
+my_test_all
+```
+
+
+We reproduce as well the density graph showing the resulting p-value and t-test statistic.
+
+
+```{r}
+swiss_cows_data %>% 
+  specify(formula = weight ~ breed) %>%
+  hypothesize(null = 'independence') %>%
+  calculate(stat = "t") %>%
+  visualise(method = "theoretical") +
+  shade_p_value(obs_stat = my_test_all[1], direction = "both")
+```
+
+The area of the red region under the density curse is equal to the p-value obtained in the t-test, `r my_test_all[3]`. The red line corresponds to the value of the t-statistic `r my_test_all[1]`. We can conclude with 95% confidence that Swiss brown cows are heavier.
+
+## Part 3: T-test on data from a fitness club
+
+
+```{r message=FALSE, warning=FALSE}
+fitness_members <- read_csv("fitness_members.csv")
+
+glimpse(fitness_members)
+```
+
+
+
+```{r message=FALSE, warning=FALSE}
+fitness_tracking <- read_csv("fitness_tracking.csv")
+
+glimpse(fitness_tracking)
+```
+
+
+
+Let's perform a t-test to answer the question **Do we observe a different evolution of BMI from week 0 to week 12 in the different fitness club membership categories ?**
+
+```{r}
+fitness_members %>% 
+  left_join(fitness_tracking, by=c("id")) %>% 
+  group_by(m_category) %>% 
+  summarise(number_obs=n(), bmi0=mean(weight)/(mean(height)*mean(height))*10000)
+```
+
+
+First some data manipulation to join the datasets together, calculate BMI.
+
+
+
+```{r}
+fit_data <- fitness_tracking %>% 
+  left_join(fitness_members, by=c("id")) %>% 
+  rename("wk_000"= "weight") %>% 
+  select(id, wk_000, everything()) %>% 
+  pivot_longer(cols = wk_000:wk_052, names_to = "week_number", values_to = "weight") %>% 
+  mutate(week_number=str_replace(week_number, "wk_0", "")) %>% 
+  mutate(bmi=weight/(height*height)*10000)
+
+fit_data
+```
+
+
+Visualize the data.
+
+
+```{r}
+fit_data %>% 
+  mutate(week_number=as.numeric(week_number)) %>% 
+  group_by(m_category, week_number) %>% 
+  summarise(mean_bmi=mean(bmi, na.rm=TRUE)) %>% 
+  ggplot(aes(x=week_number, y=mean_bmi, color= m_category)) +
+  geom_point()+
+  geom_line()+
+  labs(title="Evolution of average BMI for the different membership categories over 52 weeks",
+       caption="Fitness Club The Good Fit",
+       x="Week number",
+       y="BMI",
+       color="Membership catgeory")
+```
+
+
+```{r}
+fit_data %>% 
+  mutate(week_number=as.numeric(week_number)) %>% 
+  group_by(m_category, week_number) %>% 
+  summarise(mean_bmi=mean(bmi, na.rm=TRUE)) %>% 
+  ungroup
+```
+
+Now the t-test. We need to choose two categories at a time. 
+The test below is for Balance vs. Economy.
+
+```{r}
+my_fit_test_be <- fit_data %>% 
+  mutate(week_number=as.numeric(week_number)) %>% 
+  group_by(m_category, week_number) %>% 
+  summarise(mean_bmi=mean(bmi, na.rm=TRUE)) %>% 
+  ungroup %>% 
+  t_test(formula = mean_bmi ~ m_category,
+         order = c("Balance", "Economy"),
+         conf_level = 0.95)
+
+my_fit_test_be
+```
+
+
+
+```{r}
+my_fit_test_pe <- fit_data %>% 
+  mutate(week_number=as.numeric(week_number)) %>% 
+  group_by(m_category, week_number) %>% 
+  summarise(mean_bmi=mean(bmi, na.rm=TRUE)) %>% 
+  ungroup %>% 
+  t_test(formula = mean_bmi ~ m_category,
+         order = c("Premium", "Economy"),
+         conf_level = 0.95)
+
+my_fit_test_pe
+```
+
+
+```{r}
+my_fit_test_pb <- fit_data %>% 
+  mutate(week_number=as.numeric(week_number)) %>% 
+  group_by(m_category, week_number) %>% 
+  summarise(mean_bmi=mean(bmi, na.rm=TRUE)) %>% 
+  ungroup %>% 
+  t_test(formula = mean_bmi ~ m_category,
+         order = c("Premium", "Balance"),
+         conf_level = 0.95)
+
+my_fit_test_pb
+```
+
+
+
+The difference in BMI is significantly higher in Economy than in Balance, and in Economy than in Premium.
+
+
+## Part 4: Chi-squared test 
+
+When we compare the number of members in the Premium category to the other categories Economic and Balance, do we observe a similar pattern for female and male fitness members ?
+
+First, let's visualise the data.
+
+Contingency tables.
+
+```{r}
+fitness_members %>% 
+  count(m_category, gender, name="freq")
+```
+
+
+```{r}
+fitness_members %>% 
+  count(m_category, gender, name="freq") %>% 
+  pivot_wider(names_from=m_category, values_from=freq) %>% 
+  mutate(total_members=Economy+Balance+Premium) %>% 
+  mutate(Economy=round(Economy/total_members*100),
+         Balance=round(Balance/total_members*100),
+         Premium=round(Premium/total_members*100))
+```
+
+
+Grouped bar charts.
+
+```{r}
+fitness_members %>% 
+  count(m_category, gender, name="freq") %>% 
+  ggplot(aes(x=m_category, y=freq, fill=m_category))+
+  geom_col()+
+  facet_wrap(vars(gender))+
+  labs(title="Membership categories by gender",
+       caption="Fitness Club the Good Fit",
+       x="Memberhsip categories",
+       y="Frequency")
+```
+
+
+The code below is to order the levels of the ordinal variable m_category.
+
+
+```{r}
+
+fitness_members <- fitness_members %>%
+  mutate(m_category = factor(m_category, levels = c("Economy", "Balance", "Premium")))
+```
+
+
+And the chi-squared test.
+
+```{r}
+chi_test <- fitness_members %>% 
+  chisq_test(formula= m_category ~ gender)
+
+chi_test
+```
+
+```{r}
+fitness_members %>% 
+  chisq_test(formula= gender ~ m_category)
+```
+
+
+
+And visualizing the p-value.
+
+
+```{r}
+fitness_members %>%
+  specify(formula = m_category ~ gender) %>%
+  hypothesize(null = "independence") %>%
+  assume(distribution = "Chisq") %>% 
+  visualise() +
+  shade_p_value(obs_stat = chi_test[1], direction = "both") +
+  theme_minimal()
+```
+
