@@ -279,15 +279,15 @@ fitness club membership categories ?**
 fitness_members %>% 
   left_join(fitness_tracking, by=c("id")) %>% 
   group_by(m_category) %>% 
-  summarise(number_obs=n(), bmi0=mean(weight)/(mean(height)*mean(height))*10000)
+  summarise(number_obs=n(), bmi_start=mean(weight)/(mean(height)*mean(height))*10000)
 ```
 
     ## # A tibble: 3 × 3
-    ##   m_category number_obs  bmi0
-    ##   <chr>           <int> <dbl>
-    ## 1 Balance           126  25.2
-    ## 2 Economy           230  25.6
-    ## 3 Premium            64  25.3
+    ##   m_category number_obs bmi_start
+    ##   <chr>           <int>     <dbl>
+    ## 1 Balance           126      25.2
+    ## 2 Economy           230      25.6
+    ## 3 Premium            64      25.3
 
 First some data manipulation to join the datasets together, calculate
 BMI.
@@ -342,6 +342,100 @@ fit_data %>%
 
 ![](Project4_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
 
+To answer the question we only need to keep weeks 0 and 52, and
+calculate the difference in BMI for each member of the club.
+
+``` r
+fitness_tracking %>% 
+  left_join(fitness_members, by=c("id")) %>% 
+  rename("wk_000"= "weight") %>% 
+  select(id, wk_000, wk_052, gender, birth_date, m_category, height) %>% 
+  mutate(bmi_diff=(wk_000-wk_052)/(height*height)*10000)
+```
+
+    ## # A tibble: 418 × 8
+    ##    id     wk_000 wk_052 gender birth_date m_category height bmi_diff
+    ##    <chr>   <dbl>  <dbl> <chr>  <date>     <chr>       <dbl>    <dbl>
+    ##  1 000001   73.9   66.3 M      1966-11-12 Economy      182.     2.30
+    ##  2 000002   68.4   60.7 F      1997-09-21 Balance      162.     2.92
+    ##  3 000003   82.5   73.9 M      1990-12-15 Premium      182.     2.59
+    ##  4 000004   82.9   75.3 M      1976-07-26 Economy      182.     2.30
+    ##  5 000005   78     70.5 M      1983-08-18 Economy      178.     2.37
+    ##  6 000006   79.8   72.1 M      1985-04-23 Economy      177.     2.45
+    ##  7 000007   73.8   65.1 F      1986-09-20 Premium      168.     3.10
+    ##  8 000008   83.7   76   M      1982-12-06 Balance      183.     2.31
+    ##  9 000009   71.2   62.4 M      1967-10-06 Premium      169.     3.09
+    ## 10 000010   80.1   72.3 M      1985-05-29 Balance      180      2.41
+    ## # ℹ 408 more rows
+
+And now the t-test for bmi_difference being higher in the Balance
+category than in Economy and results are significant at 95% confidence
+level.
+
+``` r
+my_fit_test_beid <- fitness_tracking %>% 
+  left_join(fitness_members, by=c("id")) %>% 
+  rename("wk_000"= "weight") %>% 
+  select(id, wk_000, wk_052, gender, birth_date, m_category, height) %>% 
+  mutate(bmi_diff=(wk_000-wk_052)/(height*height)*10000) %>% 
+  t_test(formula = bmi_diff ~ m_category,
+         order = c("Balance", "Economy"),
+         conf_level = 0.95)
+
+my_fit_test_beid
+```
+
+    ## # A tibble: 1 × 7
+    ##   statistic  t_df  p_value alternative estimate lower_ci upper_ci
+    ##       <dbl> <dbl>    <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1      3.47  88.1 0.000801 two.sided      0.143   0.0611    0.224
+
+We run the same t-test but looking for differences in BMI between
+Premium and Economy. And the difference is again significant at the
+level 0.05.
+
+``` r
+my_fit_test_peid <- fitness_tracking %>% 
+  left_join(fitness_members, by=c("id")) %>% 
+  rename("wk_000"= "weight") %>% 
+  select(id, wk_000, wk_052, gender, birth_date, m_category, height) %>% 
+  mutate(bmi_diff=(wk_000-wk_052)/(height*height)*10000) %>% 
+  t_test(formula = bmi_diff ~ m_category,
+         order = c("Premium", "Economy"),
+         conf_level = 0.95)
+
+my_fit_test_peid
+```
+
+    ## # A tibble: 1 × 7
+    ##   statistic  t_df  p_value alternative estimate lower_ci upper_ci
+    ##       <dbl> <dbl>    <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1      10.2  36.7 3.30e-12 two.sided      0.523    0.419    0.628
+
+The last step is to check for differences between Premium and Balance
+members. And this difference is also significant.
+
+``` r
+my_fit_test_pbid <- fitness_tracking %>% 
+  left_join(fitness_members, by=c("id")) %>% 
+  rename("wk_000"= "weight") %>% 
+  select(id, wk_000, wk_052, gender, birth_date, m_category, height) %>% 
+  mutate(bmi_diff=(wk_000-wk_052)/(height*height)*10000) %>% 
+  t_test(formula = bmi_diff ~ m_category,
+         order = c("Premium", "Balance"),
+         conf_level = 0.95)
+
+my_fit_test_pbid
+```
+
+    ## # A tibble: 1 × 7
+    ##   statistic  t_df      p_value alternative estimate lower_ci upper_ci
+    ##       <dbl> <dbl>        <dbl> <chr>          <dbl>    <dbl>    <dbl>
+    ## 1      6.53  52.4 0.0000000267 two.sided      0.380    0.264    0.497
+
+Another appraoch is to compare BMI means week by week and across
+categories.
+
 ``` r
 fit_data %>% 
   mutate(week_number=as.numeric(week_number)) %>% 
@@ -368,8 +462,8 @@ fit_data %>%
     ## 10 Balance              9     23.7
     ## # ℹ 149 more rows
 
-Now the t-test. We need to choose two categories at a time. The test
-below is for Balance vs. Economy.
+Now the t-test for this second approach. We need to choose two
+categories at a time. The test below is for Balance vs. Economy.
 
 ``` r
 my_fit_test_be <- fit_data %>% 
@@ -440,8 +534,8 @@ my_fit_test_pb
     ##       <dbl> <dbl>   <dbl> <chr>          <dbl>    <dbl>    <dbl>
     ## 1      1.01  102.   0.317 two.sided      0.114   -0.111    0.339
 
-The difference in BMI is significantly higher in Economy than in
-Balance, and in Economy than in Premium.
+The mean BMI is significantly higher in Economy than in Balance, and in
+Economy than in Premium.
 
 ## Part 4: Chi-squared test
 
@@ -498,7 +592,7 @@ fitness_members %>%
        y="Frequency")
 ```
 
-![](Project4_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+![](Project4_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
 
 The code below is to order the levels of the ordinal variable
 m_category.
@@ -532,7 +626,8 @@ fitness_members %>%
     ##       <dbl>    <int>   <dbl>
     ## 1     0.904        2   0.636
 
-And visualizing the p-value.
+And visualizing the p-value we cannnot reject the null hypothesis that
+there is no difference by gender in membership categories.
 
 ``` r
 fitness_members %>%
@@ -547,4 +642,4 @@ fitness_members %>%
     ## Warning: Chi-Square usually corresponds to right-tailed tests. Proceed with
     ## caution.
 
-![](Project4_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
+![](Project4_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
