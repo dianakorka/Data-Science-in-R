@@ -1,0 +1,179 @@
+---
+title: "Clustering"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Clustering
+
+For datasets where we do not have labels/ a clear output variable, we use unsupervised learning algorithms. These refer to cases where we do not necessarily want to predict some value but instead want to uncover certain patterns and structures in the data.
+
+A very common unsupervised learning task is to discover groups of similar data, also known as clusters. The algorithm separates the data points into different bins, but these bins do not have any original labels. The algorithm has to figure out what data points have in common and separate them based on this. For example, we might use clustering when performing market segmentation. We might want to target certain advertising campaigns based on the type of user, but we might not have a predetermined notion of the user groups. In this case, we could apply clustering and let the algorithm figure out on its own how to best divide the users into groups.
+
+We will use the iris dataset below.
+
+```{r message=FALSE, warning=FALSE}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(visdat)
+library(tidyr)
+library(ggthemes)
+library(tibble)
+
+iris <- as_tibble(iris)
+
+glimpse(iris)
+```
+
+Let's plot the Iris dataset but without taking into account the Species variable which indicates the flower type.
+
+The question is how many distinct clusters - types of flowers there are in the dataset and which flowers belong to which group.
+
+First let's plot the data that will be taken into account in the clustering model.
+
+```{r}
+iris %>% 
+  ggplot(aes(x=Sepal.Length, y=Sepal.Width)) +
+  geom_point(alpha=0.5)+
+  labs(title="Iris flowers")
+```
+
+We will use distance clustering. We assume that points which are closer to each other are more similar, and therefore we will group the points according to their position on the graph. We will perform our clustering task according to the following criteria: points in the same cluster should be close to each other; points in different clusters should be far apart.
+
+This is what is known as distance clustering. There are many different choices for the calculation of a distance between two points. A common choice however is to use the Euclidean distance.
+
+## K-means clustering
+
+The k-means is perhaps the simplest unsupervised learning algorithm. The algorithm requires two arguments. The first one is the data set. The second argument is a constant k which specifies the number of clusters that the data should be separated into.
+
+There are several strategies to compute an appropriate number k of clusters. A simple and common one is based on the WSS criterion. WSS stands for **Within-cluster Sum of Squares**, which is an overall measure of variability within clusters.
+
+We run a k-means clustering using different values of k, for instance values going from 1 to 8. A plot is then produced showing WSS values vs. k. The location of an elbow in the resulting plot is usually considered a good indicator of the number of clusters to choose. K values higher than the elbow value lead to minor WSS improvements.
+
+
+```{r}
+# remove unnecessary columns:
+iris_sepal <- iris %>% select(Sepal.Length, Sepal.Width)
+
+
+# function to compute total within-cluster sum of squares (wss):
+wss_func <- function(k) {
+  kmeans(scale(iris_sepal), k, nstart = 10)$tot.withinss
+}
+
+
+# create tibble with k values and corresponding wss values:
+k_values <- 1:8
+wss_values <- purrr::map_dbl(k_values, wss_func)
+wss_tib <- tibble::tibble(k = k_values, wss = wss_values)
+
+
+# plot wss for k = 1 to k = 8:
+wss_tib %>% ggplot(aes(x = k, y = wss)) +
+  geom_line() +
+  geom_point(size = 3) +
+  scale_x_continuous(breaks = k_values) +
+  labs(title = "Selection of k value for k-means algorithm",
+       x = "Number of clusters (k)",
+       y = "Total within-clusters sum of squares (wss)") +
+  theme_minimal()  
+```
+
+
+
+So 3 may be the right choice for k.
+
+
+
+```{r}
+km3 <- kmeans(scale(iris_sepal), centers = 3, nstart = 10)
+
+km3
+```
+
+
+## Standardizing/rescaling data
+
+The calculation of distances between points is key in the k-means algorithm. The data rescale ensures that these calculations are not dominated by variables with wide ranges. With the scale() function, we make sure that all the variables have a similar importance which does not depend on units of measurement.
+
+In the last row of the above code, we apply the scale() function to our data. This function centers each column (i.e. the average of each column is equal to 0) and reduces each column (i.e. the average is equal to 0, and the SD is equal to 1 for each column).
+
+
+```{r}
+#Which WSS value do you get ?
+
+km3$tot.withinss
+```
+
+Code for accessing different elements from the km3 model.
+
+```{r}
+km3$cluster # the predicted values
+
+
+km3$centers # where the scaled cluster centers are located
+
+km3$size # how many points are predicted of each cluster
+
+```
+
+```{r}
+as.tibble(km3$cluster) %>% 
+  count(value)
+```
+
+
+Add the predictions to the iris dataset, so we can plot the result in a scatterplot and see if the clustering makes sense for our data.
+
+```{r}
+as.tibble(km3$centers) %>% 
+  mutate(predicted_cluster=c(1,2,3))
+```
+
+
+
+
+```{r}
+
+iris_predicted <- bind_cols(iris_sepal, tibble(predicted_cluster=km3$cluster))
+
+iris_predicted
+```
+
+
+Plotting the resulting clusters resulting from the k-means model with k=3.
+
+
+```{r}
+iris_predicted %>% 
+  mutate(predicted_cluster=factor(predicted_cluster)) %>% 
+  ggplot(aes(x=Sepal.Length, y=Sepal.Width, color=predicted_cluster)) +
+  geom_point(alpha=0.5, size=4) +
+  labs(title="Iris flowers",
+       subtitle = "with predicted clusters, k-means, k=3",
+       color="Predicted cluster group")
+```
+
+
+And plotting the results on scaled/standardized data, with cluster center points.
+
+
+```{r}
+bind_cols(scale(iris_sepal), tibble(predicted_cluster=km3$cluster)) %>%
+  mutate(predicted_cluster=factor(predicted_cluster)) %>% 
+  ggplot(aes(x=Sepal.Length, y=Sepal.Width, color=predicted_cluster)) +
+  geom_point(data=as.tibble(km3$centers) %>% 
+               mutate(predicted_cluster=factor(c(1,2,3))), 
+             shape=16, size=4,
+             aes(x=Sepal.Length, y=Sepal.Width)) +
+  geom_point(alpha=0.8, size=4, shape=1) +
+  labs(title="Iris flowers standardized data",
+       subtitle = "with predicted clusters, k-means, k=3",
+       color="Predicted cluster group")
+```
+
+
