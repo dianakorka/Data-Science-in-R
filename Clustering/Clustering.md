@@ -128,23 +128,23 @@ km3 <- kmeans(scale(iris_sepal), centers = 3, nstart = 10)
 km3
 ```
 
-    ## K-means clustering with 3 clusters of sizes 49, 56, 45
+    ## K-means clustering with 3 clusters of sizes 45, 56, 49
     ## 
     ## Cluster means:
     ##   Sepal.Length Sepal.Width
-    ## 1  -0.99872072   0.9032290
+    ## 1   1.16066951   0.1386766
     ## 2  -0.05880023  -0.9017619
-    ## 3   1.16066951   0.1386766
+    ## 3  -0.99872072   0.9032290
     ## 
     ## Clustering vector:
-    ##   [1] 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
-    ##  [38] 1 1 1 1 2 1 1 1 1 1 1 1 1 3 3 3 2 3 2 3 2 3 2 2 2 2 2 2 3 2 2 2 2 3 2 2 2
-    ##  [75] 3 3 3 3 2 2 2 2 2 2 2 3 3 2 2 2 2 2 2 2 2 2 2 2 2 2 3 2 3 3 3 3 2 3 2 3 3
-    ## [112] 2 3 2 2 3 3 3 3 2 3 2 3 2 3 3 2 2 2 3 3 3 2 2 2 3 3 3 2 3 3 3 2 3 3 3 2 3
-    ## [149] 3 2
+    ##   [1] 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3
+    ##  [38] 3 3 3 3 2 3 3 3 3 3 3 3 3 1 1 1 2 1 2 1 2 1 2 2 2 2 2 2 1 2 2 2 2 1 2 2 2
+    ##  [75] 1 1 1 1 2 2 2 2 2 2 2 1 1 2 2 2 2 2 2 2 2 2 2 2 2 2 1 2 1 1 1 1 2 1 2 1 1
+    ## [112] 2 1 2 2 1 1 1 1 2 1 2 1 2 1 1 2 2 2 1 1 1 2 2 2 1 1 1 2 1 1 1 2 1 1 1 2 1
+    ## [149] 1 2
     ## 
     ## Within cluster sum of squares by cluster:
-    ## [1] 38.72457 34.32476 28.88194
+    ## [1] 28.88194 34.32476 38.72457
     ##  (between_SS / total_SS =  65.8 %)
     ## 
     ## Available components:
@@ -179,60 +179,42 @@ Code for accessing different elements from the km3 model.
 km3$cluster # the predicted values
 ```
 
-    ##   [1] 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
-    ##  [38] 1 1 1 1 2 1 1 1 1 1 1 1 1 3 3 3 2 3 2 3 2 3 2 2 2 2 2 2 3 2 2 2 2 3 2 2 2
-    ##  [75] 3 3 3 3 2 2 2 2 2 2 2 3 3 2 2 2 2 2 2 2 2 2 2 2 2 2 3 2 3 3 3 3 2 3 2 3 3
-    ## [112] 2 3 2 2 3 3 3 3 2 3 2 3 2 3 3 2 2 2 3 3 3 2 2 2 3 3 3 2 3 3 3 2 3 3 3 2 3
-    ## [149] 3 2
+    ##   [1] 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3
+    ##  [38] 3 3 3 3 2 3 3 3 3 3 3 3 3 1 1 1 2 1 2 1 2 1 2 2 2 2 2 2 1 2 2 2 2 1 2 2 2
+    ##  [75] 1 1 1 1 2 2 2 2 2 2 2 1 1 2 2 2 2 2 2 2 2 2 2 2 2 2 1 2 1 1 1 1 2 1 2 1 1
+    ## [112] 2 1 2 2 1 1 1 1 2 1 2 1 2 1 1 2 2 2 1 1 1 2 2 2 1 1 1 2 1 1 1 2 1 1 1 2 1
+    ## [149] 1 2
 
 ``` r
 km3$centers # where the scaled cluster centers are located
 ```
 
     ##   Sepal.Length Sepal.Width
-    ## 1  -0.99872072   0.9032290
+    ## 1   1.16066951   0.1386766
     ## 2  -0.05880023  -0.9017619
-    ## 3   1.16066951   0.1386766
+    ## 3  -0.99872072   0.9032290
 
 ``` r
 km3$size # how many points are predicted of each cluster
 ```
 
-    ## [1] 49 56 45
+    ## [1] 45 56 49
 
 ``` r
-as.tibble(km3$cluster) %>% 
+as_tibble(km3$cluster) %>% 
   count(value)
 ```
-
-    ## Warning: `as.tibble()` was deprecated in tibble 2.0.0.
-    ## ℹ Please use `as_tibble()` instead.
-    ## ℹ The signature and semantics have changed, see `?as_tibble`.
-    ## This warning is displayed once every 8 hours.
-    ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
-    ## generated.
 
     ## # A tibble: 3 × 2
     ##   value     n
     ##   <int> <int>
-    ## 1     1    49
+    ## 1     1    45
     ## 2     2    56
-    ## 3     3    45
+    ## 3     3    49
 
 Add the predictions to the iris dataset, so we can plot the result in a
-scatterplot and see if the clustering makes sense for our data.
-
-``` r
-as.tibble(km3$centers) %>% 
-  mutate(predicted_cluster=c(1,2,3))
-```
-
-    ## # A tibble: 3 × 3
-    ##   Sepal.Length Sepal.Width predicted_cluster
-    ##          <dbl>       <dbl>             <dbl>
-    ## 1      -0.999        0.903                 1
-    ## 2      -0.0588      -0.902                 2
-    ## 3       1.16         0.139                 3
+scatterplot and see if the clustering solution given by the model makes
+sense for our data.
 
 ``` r
 iris_predicted <- bind_cols(iris_sepal, tibble(predicted_cluster=km3$cluster))
@@ -243,17 +225,31 @@ iris_predicted
     ## # A tibble: 150 × 3
     ##    Sepal.Length Sepal.Width predicted_cluster
     ##           <dbl>       <dbl>             <int>
-    ##  1          5.1         3.5                 1
-    ##  2          4.9         3                   1
-    ##  3          4.7         3.2                 1
-    ##  4          4.6         3.1                 1
-    ##  5          5           3.6                 1
-    ##  6          5.4         3.9                 1
-    ##  7          4.6         3.4                 1
-    ##  8          5           3.4                 1
-    ##  9          4.4         2.9                 1
-    ## 10          4.9         3.1                 1
+    ##  1          5.1         3.5                 3
+    ##  2          4.9         3                   3
+    ##  3          4.7         3.2                 3
+    ##  4          4.6         3.1                 3
+    ##  5          5           3.6                 3
+    ##  6          5.4         3.9                 3
+    ##  7          4.6         3.4                 3
+    ##  8          5           3.4                 3
+    ##  9          4.4         2.9                 3
+    ## 10          4.9         3.1                 3
     ## # ℹ 140 more rows
+
+Build a similar tibble for the cluster centers.
+
+``` r
+as_tibble(km3$centers) %>% 
+  mutate(predicted_cluster=c(1,2,3))
+```
+
+    ## # A tibble: 3 × 3
+    ##   Sepal.Length Sepal.Width predicted_cluster
+    ##          <dbl>       <dbl>             <dbl>
+    ## 1       1.16         0.139                 1
+    ## 2      -0.0588      -0.902                 2
+    ## 3      -0.999        0.903                 3
 
 Plotting the resulting clusters resulting from the k-means model with
 k=3.
@@ -277,7 +273,7 @@ center points.
 bind_cols(scale(iris_sepal), tibble(predicted_cluster=km3$cluster)) %>%
   mutate(predicted_cluster=factor(predicted_cluster)) %>% 
   ggplot(aes(x=Sepal.Length, y=Sepal.Width, color=predicted_cluster)) +
-  geom_point(data=as.tibble(km3$centers) %>% 
+  geom_point(data=as_tibble(km3$centers) %>% 
                mutate(predicted_cluster=factor(c(1,2,3))), 
              shape=16, size=4,
              aes(x=Sepal.Length, y=Sepal.Width)) +

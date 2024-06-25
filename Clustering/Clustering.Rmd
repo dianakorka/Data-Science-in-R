@@ -122,17 +122,13 @@ km3$size # how many points are predicted of each cluster
 ```
 
 ```{r}
-as.tibble(km3$cluster) %>% 
+as_tibble(km3$cluster) %>% 
   count(value)
 ```
 
 
-Add the predictions to the iris dataset, so we can plot the result in a scatterplot and see if the clustering makes sense for our data.
+Add the predictions to the iris dataset, so we can plot the result in a scatterplot and see if the clustering solution given by the model makes sense for our data.
 
-```{r}
-as.tibble(km3$centers) %>% 
-  mutate(predicted_cluster=c(1,2,3))
-```
 
 
 
@@ -142,6 +138,15 @@ as.tibble(km3$centers) %>%
 iris_predicted <- bind_cols(iris_sepal, tibble(predicted_cluster=km3$cluster))
 
 iris_predicted
+```
+
+
+Build a similar tibble for the cluster centers.
+
+
+```{r}
+as_tibble(km3$centers) %>% 
+  mutate(predicted_cluster=c(1,2,3))
 ```
 
 
@@ -166,7 +171,7 @@ And plotting the results on scaled/standardized data, with cluster center points
 bind_cols(scale(iris_sepal), tibble(predicted_cluster=km3$cluster)) %>%
   mutate(predicted_cluster=factor(predicted_cluster)) %>% 
   ggplot(aes(x=Sepal.Length, y=Sepal.Width, color=predicted_cluster)) +
-  geom_point(data=as.tibble(km3$centers) %>% 
+  geom_point(data=as_tibble(km3$centers) %>% 
                mutate(predicted_cluster=factor(c(1,2,3))), 
              shape=16, size=4,
              aes(x=Sepal.Length, y=Sepal.Width)) +
