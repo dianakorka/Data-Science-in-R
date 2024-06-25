@@ -12,9 +12,9 @@ library(tidyr)
 library(ggthemes)
 ```
 
-We begin with what is perhaps the most simple and classic machine
-learning algorithm: linear regression. here the goal is to use the model
-to predict the stopping distnace for a given speed value.
+This is the most simple and classic machine learning algorithm: linear
+regression. Here build the model with the goal to predict the stopping
+distance (ft) for a given speed value (mph).
 
 ``` r
 glimpse(cars)
@@ -26,18 +26,18 @@ glimpse(cars)
     ## $ dist  <dbl> 2, 10, 4, 22, 16, 10, 18, 26, 34, 17, 28, 14, 20, 24, 28, 26, 34…
 
 A linear regression model tries to establish a linear relationship
-between an independent variable and dependent variables. The independent
-variable is speed and the dependent variable is stopping distance. That
-is, we want to find coefficients β0 and β1 such that we can write: dist=
-β0 + β1\*speed.
+between an independent variable and one or several dependent variables.
+Here the independent variable = speed and the dependent variable =
+stopping distance. That is, we want to find coefficients β0 and β1 such
+that we can write: dist= β0 + β1\*speed.
 
 If we could figure out the values of these coefficients, then giving a
-new value for speed we could use our formula to predict a value for
+new value for speed we could use the formula to predict a value for
 dist.
 
-Before building any kind of model, it is a good idea to take a visual
-look at the data. This can reveal some information already about the
-type of relationship we should expect between the variables.
+Before building a model, it is a good idea to take a visual look at the
+data. This can reveal some information already about the type of
+relationship to be expected between the variables.
 
 ``` r
 cars %>% 
@@ -53,10 +53,10 @@ cars %>%
 ![](LinearRegression_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
 From this plot, we can already tell there seems to be a linear
-relationship between the two variables: the higher the speed the higher
+relationship between the two variables: the higher the speed, the higher
 the distance. This gives us the reassurance that a linear regression
-model is really appropriate in this situation. Now to build a linear
-regression model in R we can use the special function lm().
+model is appropriate in this situation. To build a linear regression
+model in R we can use the special function lm().
 
 ``` r
 cars_lm <- lm(dist ~ speed, data = cars)
@@ -76,8 +76,8 @@ This tells us that the relationship predicted by our model is dist =
 -17.5790949 + -17.5790949\*speed.
 
 To see if our model is any good, we can compare the values predicted by
-the model versus the actual values. We will save these values in a new
-column of the dataset called predicted.
+the model versus the actual values. We save these values in a new column
+of the dataset named predicted.
 
 ``` r
 cars$predicted <- cars_lm$fitted.values
@@ -93,8 +93,8 @@ head(cars)
     ## 5     8   16 13.880175
     ## 6     9   10 17.812584
 
-We can now plot both the predicted values against the true values to get
-a visual idea of how well our model did.
+We can now plot the predicted values against the true values to get a
+visual idea of how well our model did.
 
 ``` r
 ggplot(data = cars, 
@@ -141,10 +141,9 @@ summary(cars_lm)
     ## Multiple R-squared:  0.6511, Adjusted R-squared:  0.6438 
     ## F-statistic: 89.57 on 1 and 48 DF,  p-value: 1.49e-12
 
-We can see that the p-value or our model is 1.489836e-12. Using our
-previous rule of checking whether the p-value is smaller than 0.05 we
-can conclude that in this case that our model is statistically
-significant.
+We can see that the p-value of our model is 1.489836e-12. We check
+whether the p-value is smaller than 0.05, and we can conclude that in
+this case our model is statistically significant.
 
 The null hypothesis here would be that there is no linear relationship
 between our variables. Or in other words, that the coefficient β1
@@ -153,7 +152,8 @@ is that there is a linear relationship between speed and dist. In our
 case, since the p-value is less than the significance level (\< 0.05),
 we can safely reject the null hypothesis.
 
-Below is code on how to access different elements from the summary.
+Below is some code on how to access different elements from the
+summary() function of the linear model.
 
 ``` r
 summary(cars_lm)$coefficients
@@ -215,12 +215,12 @@ overall_p(cars_lm)
 
     ## [1] 1.489836e-12
 
-Now that we have our model and are quite confident with it, we can use
-it to predict new values. Let’s suppose that we have 5 new observations
-with the following values:
+Now that we have our model and we’re reasonably confident in it, we can
+use it to predict new values. Let’s suppose that we have 5 new
+observations with the following values:
 
 ``` r
-cars_new <- tibble(speed = c(10, 22, 30, 8, 40))
+cars_new <- tibble(speed = c(10, 12, 18, 8, 22))
 
 cars_new
 ```
@@ -229,10 +229,10 @@ cars_new
     ##   speed
     ##   <dbl>
     ## 1    10
-    ## 2    22
-    ## 3    30
+    ## 2    12
+    ## 3    18
     ## 4     8
-    ## 5    40
+    ## 5    22
 
 We can use the predict() function to predict the distance variable for
 each of these new observations using the regression model cars.lm that
@@ -242,12 +242,12 @@ we just built.
 predict(object = cars_lm, newdata = cars_new)
 ```
 
-    ##         1         2         3         4         5 
-    ##  21.74499  68.93390 100.39317  13.88018 139.71726
+    ##        1        2        3        4        5 
+    ## 21.74499 29.60981 53.20426 13.88018 68.93390
 
-But we saw above that the relationship between spped and stopping
-distnace may in fact be quadratic. So let’s redo the exercise for a
-qudratic relationship.
+But we saw above that the relationship between speed and stopping
+distance may in fact be quadratic. So let’s redo the exercise for a
+quadratic relationship.
 
 First we create a new column equal to speed squared.
 
@@ -259,7 +259,8 @@ cars$speed^2
     ## [20] 196 196 196 196 225 225 225 256 256 289 289 289 324 324 324 324 361 361 361
     ## [39] 400 400 400 400 400 484 529 576 576 576 576 625
 
-the plot the new linear relationship.
+Then, plot the new linear relationship between speed-squared and
+stopping distance.
 
 ``` r
 cars %>% 
@@ -267,6 +268,7 @@ cars %>%
   geom_smooth(method='lm', formula = y ~ -1 + I(x), se = TRUE, color="darkorange") +
   geom_point() +
   labs(title="Relationship between Speed^2 and Stopping Distance",
+       subtitle="with linear regression passing through origin in organge",
        x="Speed-squared (mph^2)",
        y="Stopping distance (ft)") +
   theme_economist()
@@ -307,7 +309,8 @@ head(cars)
     ## 5     8   16 13.880175          9.815920
     ## 6     9   10 17.812584         12.423274
 
-Let’s visualize predictions.
+Let’s visualize predictions of the stopping distance against the actual
+stopping distance.
 
 ``` r
 ggplot(data = cars, 
@@ -353,24 +356,60 @@ And compute predicted values for stopping distance in ft.
 predict(object = cars_lm_squared, newdata = cars_new)
 ```
 
-    ##         1         2         3         4         5 
-    ##  15.33738  74.23290 138.03638   9.81592 245.39800
+    ##        1        2        3        4        5 
+    ## 15.33738 22.08582 49.69310  9.81592 74.23290
+
+The graph below plots the original dataset and the two linear models
+built and tested.
+
+``` r
+cars_new
+```
+
+    ## # A tibble: 5 × 1
+    ##   speed
+    ##   <dbl>
+    ## 1    10
+    ## 2    12
+    ## 3    18
+    ## 4     8
+    ## 5    22
+
+``` r
+cars_predicted <- tibble(predicted = predict(object = cars_lm, newdata = cars_new))
+
+cars_predicted
+```
+
+    ## # A tibble: 5 × 1
+    ##   predicted
+    ##       <dbl>
+    ## 1      21.7
+    ## 2      29.6
+    ## 3      53.2
+    ## 4      13.9
+    ## 5      68.9
+
+``` r
+cars_predicted_sq <- tibble(predicted_sq = predict(object = cars_lm_squared, newdata = cars_new))
+
+new_tibble <- bind_cols(cars_new, cars_predicted, cars_predicted_sq)
+```
 
 ``` r
 cars %>% ggplot(aes(x = speed, y = dist)) +
   geom_smooth(method='lm', formula = y ~ -1 + I(x^2), se = FALSE, color="darkorange") +
   geom_smooth(method='lm', formula = y ~ x, se = FALSE, color="darkred") +
   geom_point() +
-  xlim(0, 25) +
-  ylim(0, 120) +
+  geom_point(data=new_tibble, aes(x=speed, y=predicted), shape=8, alpha=1, color="red") +
+  geom_point(data=new_tibble, aes(x=speed, y=predicted_sq), shape=8, alpha=1, color="red") +
+  #xlim(-5, 35) +
+  #ylim(-5, 150) +
   labs(title = "Stopping distance vs. Speed",
-       subtitle = "with quadratic model in orange and linear model in red",
+       subtitle = "with quadratic model in orange and linear model in red, predictions for 5 new points in * red",
        x = "Speed (mph)",
        y = "Stopping distance (ft)") +
   theme_economist()
 ```
 
-    ## Warning: Removed 2 rows containing missing values or values outside the scale range
-    ## (`geom_smooth()`).
-
-![](LinearRegression_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
+![](LinearRegression_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
