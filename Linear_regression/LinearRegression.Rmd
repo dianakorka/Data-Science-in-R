@@ -1,0 +1,231 @@
+---
+title: "Linear Regression"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Linear Regression
+
+
+```{r message=FALSE, warning=FALSE}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(visdat)
+library(tidyr)
+library(ggthemes)
+```
+
+
+We begin with what is perhaps the most simple and classic machine learning algorithm: linear regression. here the goal is to use the model to predict the stopping distnace for a given speed value.
+
+
+
+```{r}
+glimpse(cars)
+```
+A linear regression model tries to establish a linear relationship between an independent variable and dependent variables. The independent variable is speed and the dependent variable is stopping distance. That is, we want to find coefficients β0 and β1 such that we can write: dist= β0 + β1*speed.
+
+If we could figure out the values of these coefficients, then giving a new value for speed we could use our formula to predict a value for dist. 
+
+Before building any kind of model, it is a good idea to take a visual look at the data. This can reveal some information already about the type of relationship we should expect between the variables. 
+
+```{r}
+cars %>% 
+  ggplot(mapping = aes(x=speed, y=dist)) +
+  geom_point() +
+  geom_smooth(method='lm', formula = y ~ x, se = TRUE, color="darkred") +
+  labs(title="Relationship between Speed and Stopping Distance",
+       x="Speed (mph)",
+       y="Stopping distance (ft)")+
+  theme_economist()
+```
+
+
+From this plot, we can already tell there seems to be a linear relationship between the two variables: the higher the speed the higher the distance. This gives us the reassurance that a linear regression model is really appropriate in this situation. Now to build a linear regression model in R we can use the special function lm().
+
+```{r}
+cars_lm <- lm(dist ~ speed, data = cars)
+
+cars_lm
+```
+
+
+This tells us that the relationship predicted by our model is dist = `r cars_lm$coefficients[1]` + `r cars_lm$coefficients[1]`*speed.
+
+To see if our model is any good, we can compare the values predicted by the model versus the actual values.  We will save these values in a new column of the dataset called predicted.
+
+```{r}
+cars$predicted <- cars_lm$fitted.values
+
+head(cars)
+```
+
+We can now plot both the predicted values against the true values to get a visual idea of how well our model did.
+
+```{r}
+ggplot(data = cars, 
+       mapping = aes(x = dist, y = predicted)) +
+  geom_point() +
+  geom_line(data=cars, aes(x=dist, y=dist), color="darkblue", alpha=1)+
+  labs(title = "Stopping Distance: Predicted and Observed Values",
+       subtitle = "With y=x blue line",
+       x = "Actual Stopping Distance (ft)",
+       y = "Predicted Stopping Distance (ft)") +
+  theme_economist()
+```
+
+
+**Comments on this graph**: If the model were to predict the true values exactly, then all the points would lie on the line y=x. We can see that our points tend to be not too far from this line, except for the higher values of speed & distance.
+
+Now we can check how well the model fits the data by calling the summary function.
+
+```{r}
+summary(cars_lm)
+```
+
+
+
+We can see that the p-value or our model is 1.489836e-12. Using our previous rule of checking whether the p-value is smaller than 0.05 we can conclude that in this case that our model is statistically significant. 
+
+The null hypothesis here would be that there is no linear relationship between our variables. Or in other words, that the coefficient β1 corresponding to the variable speed is zero. The alternative hypothesis is that there is a linear relationship between speed and dist. In our case, since the p-value is less than the significance level (< 0.05), we can safely reject the null hypothesis.
+
+
+Below is code on how to access different elements from the summary.
+
+```{r}
+summary(cars_lm)$coefficients
+
+summary(cars_lm)$coefficients["speed", "Pr(>|t|)"]
+
+summary(cars_lm)$coefficients["(Intercept)", "Pr(>|t|)"]
+
+summary(cars_lm)$coefficients["speed",]
+
+summary(cars_lm)$r.squared
+
+summary(cars_lm)$adj.r.squared
+
+summary(cars_lm)$fstatistic
+
+#define function to extract overall p-value of model
+overall_p <- function(cars_lm) {
+    f <- summary(cars_lm)$fstatistic
+    p <- pf(f[1],f[2],f[3],lower.tail=F)
+    attributes(p) <- NULL
+    return(p)
+}
+
+overall_p(cars_lm)
+```
+
+Now that we have our model and are quite confident with it, we can use it to predict new values. Let's suppose that we have 5 new observations with the following values:
+
+```{r}
+cars_new <- tibble(speed = c(10, 22, 30, 8, 40))
+
+cars_new
+```
+
+
+We can use the predict() function to predict the distance variable for each of these new observations using the regression model cars.lm that we just built.
+
+```{r}
+predict(object = cars_lm, newdata = cars_new)
+```
+
+
+But we saw above that the relationship between spped and stopping distnace may in fact be quadratic. So let's redo the exercise for a qudratic relationship.
+
+First we create a new column equal to speed squared.
+
+
+```{r}
+cars$speed^2
+
+```
+
+the plot the new linear relationship.
+
+
+```{r}
+cars %>% 
+  ggplot(mapping = aes(x=speed^2, y=dist)) +
+  geom_smooth(method='lm', formula = y ~ -1 + I(x), se = TRUE, color="darkorange") +
+  geom_point() +
+  labs(title="Relationship between Speed^2 and Stopping Distance",
+       x="Speed-squared (mph^2)",
+       y="Stopping distance (ft)") +
+  theme_economist()
+```
+
+
+Now fitting the new quadratic model with the constraint that the intercept should be 0.
+
+```{r}
+cars_lm_squared <- lm(dist ~ -1 + I(speed^2), data = cars) # with intercept =0
+
+cars_lm_squared
+```
+
+
+Let's save the newly predicted values.
+
+```{r}
+cars$predicted_squared <- cars_lm_squared$fitted.values
+
+head(cars)
+```
+
+
+Let's visualize predictions.
+
+
+
+```{r}
+ggplot(data = cars, 
+       mapping = aes(x = dist, y = predicted_squared)) +
+  geom_point() +
+  geom_line(data=cars, aes(x=dist, y=dist), color="darkblue", alpha=1)+
+  labs(title = "Stopping Distance: Predicted(sq) and Observed Values",
+       subtitle = "with the quadratic model, blue line represents y=x",
+       x = "Actual Stopping Distance (ft)",
+       y = "Predicted Stopping Distance (ft)") +
+  theme_economist()
+```
+
+
+Check model statistics.
+
+```{r}
+summary(cars_lm_squared)
+```
+
+And compute predicted values for stopping distance in ft.
+
+
+```{r}
+
+
+predict(object = cars_lm_squared, newdata = cars_new)
+```
+
+
+
+```{r}
+cars %>% ggplot(aes(x = speed, y = dist)) +
+  geom_smooth(method='lm', formula = y ~ -1 + I(x^2), se = FALSE, color="darkorange") +
+  geom_smooth(method='lm', formula = y ~ x, se = FALSE, color="darkred") +
+  geom_point() +
+  xlim(0, 25) +
+  ylim(0, 120) +
+  labs(title = "Stopping distance vs. Speed",
+       subtitle = "with quadratic model in orange and linear model in red",
+       x = "Speed (mph)",
+       y = "Stopping distance (ft)") +
+  theme_economist()
+```
+
