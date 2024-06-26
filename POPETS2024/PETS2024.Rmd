@@ -1,0 +1,230 @@
+---
+title: "Scraping PETS 2024 accepted papers"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Accepted papers for PETS 2024, Privacy Enhancing technologies Symposium, Bristol, UK and Online
+
+With this code I obtain a list of papers accepted at PETS 2024, made available online freely at https://petsymposium.org/2024/paperlist.php.
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+library(httr)
+library(rvest)
+library(xml2)
+library(ggplot2)
+library(readr)
+library(tidyr)
+library(dplyr)
+library(lubridate)
+library(stringr)
+library(janitor)
+library(purrr)
+```
+
+
+I read the html page of the website.
+
+
+```{r}
+html_request <- read_html("https://petsymposium.org/2024/paperlist.php")
+```
+
+
+
+I view the extracted html separately and identify in it the list of papers.
+
+
+```{r}
+ 
+xml_child(xml_child(xml_child(xml_child(xml_child(html_request, 2), 1), 4), 3), 1)
+
+```
+
+
+I save several lists of authors&papers (4 in total). They are probably saved in 4 different chuncks in the html file.
+
+
+
+```{r}
+authors1 <- xml_child(xml_child(xml_child(xml_child(xml_child(html_request, 2), 1), 4), 3), 1) %>%
+  rvest::html_nodes(css="span") %>% 
+  html_text()
+```
+
+
+
+
+
+```{r}
+authors2 <- xml_child(xml_child(xml_child(xml_child(xml_child(html_request, 2), 1), 4), 5), 1) %>%
+  rvest::html_nodes(css="span") %>% 
+  html_text()
+```
+
+
+
+
+```{r}
+authors3 <- xml_child(xml_child(xml_child(xml_child(xml_child(html_request, 2), 1), 4), 8), 1) %>% 
+  rvest::html_nodes(css="span") %>% 
+  html_text()
+```
+
+
+
+```{r}
+authors4 <- xml_child(xml_child(xml_child(xml_child(xml_child(html_request, 2), 1), 4), 11), 1) %>% 
+  rvest::html_nodes(css="span") %>% 
+  html_text()
+```
+
+
+I group together all the paper information.
+
+
+```{r}
+papers1 <- xml_child(xml_child(xml_child(xml_child(xml_child(html_request, 2), 1), 4), 3), 1) %>%
+  rvest::html_nodes(css="li ") %>% 
+  html_text2()
+
+papers2 <- xml_child(xml_child(xml_child(xml_child(xml_child(html_request, 2), 1), 4), 5), 1) %>%
+  rvest::html_nodes(css="li") %>% 
+  html_text2()
+
+papers3 <- xml_child(xml_child(xml_child(xml_child(xml_child(html_request, 2), 1), 4), 8), 1) %>% 
+  rvest::html_nodes(css="li") %>% 
+  html_text2()
+
+papers4 <- xml_child(xml_child(xml_child(xml_child(xml_child(html_request, 2), 1), 4), 11), 1) %>% 
+  rvest::html_nodes(css="li") %>% 
+  html_text2()
+
+accepted_papers <- bind_rows(as_tibble(papers1),
+          as_tibble(papers2),
+          as_tibble(papers3),
+          as_tibble(papers4)) 
+
+```
+
+
+And save file as .csv file.
+
+
+
+```{r}
+
+
+as_tibble(str_split_fixed(accepted_papers$value, "\n", 2)) %>% 
+  rename("paper_name"="V1", "authors_list"="V2") %>% 
+  write_csv("scraped_popets_2024.csv")
+```
+
+
+Now I separate authors and identify unique authors, and eventual separation errors.
+
+
+```{r}
+
+as_tibble(str_split_fixed(accepted_papers$value, "\n", 2)) %>% 
+  rename("paper_name"="V1", "authors_list"="V2") %>% 
+  mutate(split_list= str_split(authors_list, "\\)+\\,+\\s")) %>% # split where the patterns is "), "
+  unnest_longer(split_list) %>% 
+  mutate(split_list=str_replace(split_list, "^and ", "")) %>%  #remove "and " in the beginning of name
+  mutate(split_list=str_replace(split_list, "\\)$", "")) %>% # remove parenthesis at end of name
+  arrange(split_list) %>% 
+  distinct(split_list, .keep_all = TRUE) # remove duplicates among authors
+```
+
+
+There are a total of 556 unique authors in the originally-scraped file. 
+Among them there are a few limited cases where authors are not yet split, and a few others where they are university or location names.
+
+In the list of 18 below there are 17 new authors that I failed to split before.
+
+
+
+```{r}
+as_tibble(str_split_fixed(accepted_papers$value, "\n", 2)) %>% 
+  rename("paper_name"="V1", "authors_list"="V2") %>% 
+  mutate(split_list= str_split(authors_list, "\\)+\\,+\\s")) %>% # split where the patterns is "), "
+  unnest_longer(split_list) %>% 
+  mutate(split_list=str_replace(split_list, "^and ", "")) %>%  #remove "and " in the beginning of name
+  mutate(split_list=str_replace(split_list, "\\)$", "")) %>% # remove parenthesis at end of name
+  arrange(split_list) %>% 
+  distinct(split_list, .keep_all = TRUE) %>% 
+  filter(str_detect(split_list, "\\)+\\s+and"))
+```
+
+
+I save them in a new list, which I split further.
+
+
+```{r}
+new_list <- as_tibble(str_split_fixed(accepted_papers$value, "\n", 2)) %>% 
+  rename("paper_name"="V1", "authors_list"="V2") %>% 
+  mutate(split_list= str_split(authors_list, "\\)+\\,+\\s")) %>% # split where the patterns is "), "
+  unnest_longer(split_list) %>% 
+  mutate(split_list=str_replace(split_list, "^and ", "")) %>%  #remove "and " in the beginning of name
+  mutate(split_list=str_replace(split_list, "\\)$", "")) %>% # remove parenthesis at end of name
+  arrange(split_list) %>% 
+  distinct(split_list, .keep_all = TRUE) %>% # remove duplicates, keep all columns
+  filter(str_detect(split_list, "\\)+\\s+and")) %>% 
+  mutate(split_additional=str_split(split_list, "\\)+\\s+and")) %>% #add new rows for the auhtors separated by ") and"
+  unnest_longer(split_additional) %>% 
+  select(paper_name, authors_list, split_additional) %>% 
+  rename(split_list=split_additional)
+
+new_list  
+```
+
+I then bind my new list to the original list, and deduplicate authors.
+
+
+```{r}
+original_list <- as_tibble(str_split_fixed(accepted_papers$value, "\n", 2)) %>% 
+  rename("paper_name"="V1", "authors_list"="V2") %>% 
+  mutate(split_list= str_split(authors_list, "\\)+\\,+\\s")) %>% # split where the patterns is "), "
+  unnest_longer(split_list) %>% 
+  mutate(split_list=str_replace(split_list, "^and ", "")) %>%  #remove "and " in the beginning of name
+  mutate(split_list=str_replace(split_list, "\\)$", "")) %>% # remove parenthesis at end of name
+  arrange(split_list) %>% 
+  distinct(split_list, .keep_all = TRUE)
+
+original_list
+```
+
+
+
+```{r}
+merged_list <- bind_rows(original_list, new_list)
+
+merged_list %>% 
+  arrange(split_list) %>% 
+  distinct(split_list, .keep_all = TRUE)
+```
+
+
+
+
+And in the list below we find the few erroneous separations that do not contain names.
+
+
+```{r}
+merged_list %>% 
+  filter(str_length(split_list)<5)
+```
+
+
+Thus, here is an improved list of 581 distinct authors, including the papers they got accepted and their affiliations.
+
+
+```{r}
+merged_list %>% 
+  filter(str_length(split_list)>5, !str_detect(split_list, "Eindhoven, Netherlands"), !str_detect(split_list, "University of California, Berkeley")) # removing obviously wrong authors  
+  
+```
+
