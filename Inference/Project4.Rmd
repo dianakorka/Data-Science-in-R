@@ -11,6 +11,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Part 1: T-test on Swiss Cows data
 
+this is some additional text
+
 ```{r message=FALSE, warning=FALSE}
 library(readr)
 library(ggplot2)
