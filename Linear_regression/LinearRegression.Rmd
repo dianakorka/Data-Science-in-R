@@ -32,6 +32,31 @@ A linear regression model tries to establish a linear relationship between an in
 
 If we could figure out the values of these coefficients, then giving a new value for speed we could use the formula to predict a value for dist. 
 
+
+First a few descriptive statistics.
+
+```{r}
+cars %>% 
+  summarise_all(mean)
+```
+
+Or even better:
+
+```{r}
+summary(cars)
+```
+
+
+
+There is a strong positive correlation between the two variables.
+
+
+```{r}
+cars %>% 
+  summarise(correlation=cor(speed, dist, method="pearson"))
+```
+
+
 Before building a model, it is a good idea to take a visual look at the data. This can reveal some information already about the type of relationship to be expected between the variables. 
 
 
@@ -42,10 +67,13 @@ cars %>%
   geom_point() +
   geom_smooth(method='lm', formula = y ~ x, se = TRUE, color="darkred") +
   labs(title="Relationship between Speed and Stopping Distance",
+       subtitle="with a linear model in dark red",
        x="Speed (mph)",
        y="Stopping distance (ft)")+
   theme_economist()
 ```
+
+
 
 
 From this plot, we can already tell there seems to be a linear relationship between the two variables: the higher the speed, the higher the distance. This gives us the reassurance that a linear regression model is appropriate in this situation. To build a linear regression model in R we can use the special function lm().
@@ -53,13 +81,15 @@ From this plot, we can already tell there seems to be a linear relationship betw
 
 
 ```{r}
-cars_lm <- lm(dist ~ speed, data = cars)
+cars_lm <- lm(dist ~ speed, data = cars) # the first variable is the dependent one/the response variable, the one to predict
 
 cars_lm
 ```
 
 
 This tells us that the relationship predicted by our model is dist = `r cars_lm$coefficients[1]` + `r cars_lm$coefficients[1]`*speed.
+
+This means that for every 1 additional mph, the stopping distance increases by nearly 4 ft (`r cars_lm$coefficients[1]` to be precise).
 
 To see if our model is any good, we can compare the values predicted by the model versus the actual values.  We save these values in a new column of the dataset named predicted.
 
@@ -103,6 +133,12 @@ We can see that the p-value of our model is 1.489836e-12. We check whether the p
 
 The null hypothesis here would be that there is no linear relationship between our variables. Or in other words, that the coefficient β1 corresponding to the variable speed is zero. The alternative hypothesis is that there is a linear relationship between speed and dist. In our case, since the p-value is less than the significance level (< 0.05), we can safely reject the null hypothesis.
 
+The coefficient of determination (R-squared) = the proportion of the variance in the response variable that is predictable from the explanatory variable. 1=perfect fit to the data, 0=model is no better than randomness. In summary it appears as multiple r-squared. For a simple linear regression, R-squared= correlation squared.
+
+Residual standard error (RSE) = difference between predicted value and observed value = how much the predictions are typically wrong by, same measurement unit as the response variable. The model above is wrong by about 15 ft. This measure appears as sigma in the glance()-generated model-level values tibble. It is a measure of accuracy for regression models.
+
+Another related measure is root mean-square error (RMSE), with a slightly different calculations. Quantifies how inaccurate the predictions are 
+
 
 Below is some code on how to access different elements from the summary() function of the linear model.
 
@@ -132,6 +168,46 @@ overall_p <- function(cars_lm) {
 
 overall_p(cars_lm)
 ```
+
+And additional code to access model elements.
+
+
+
+
+```{r}
+coefficients(cars_lm) # another way to access the coefficients
+
+fitted(cars_lm) # model predicted values on the original dataset
+
+residuals(cars_lm) # actual response minus predicted values
+```
+
+We can use the {broom} package to do some further data manipulations on the model results.
+
+```{r}
+library(broom)
+
+tidy(cars_lm) # obtain a tibble with the estimation results
+```
+
+```{r}
+augment(cars_lm) # observation-level results, fitted are the fitted values and .resid contains the residuals
+```
+
+
+
+```{r}
+glance(cars_lm) # model-level results
+```
+
+
+```{r}
+
+#to access the R-squared value
+glance(cars_lm) %>% 
+  pull(r.squared)
+```
+
 
 
 Now that we have our model and we're reasonably confident in it, we can use it to predict new values. Let's suppose that we have 5 new observations with the following values:
@@ -169,7 +245,7 @@ Then, plot the new linear relationship between speed-squared and stopping distan
 ```{r}
 cars %>% 
   ggplot(mapping = aes(x=speed^2, y=dist)) +
-  geom_smooth(method='lm', formula = y ~ -1 + I(x), se = TRUE, color="darkorange") +
+  geom_smooth(method='lm', formula = y ~ x + 0, se = TRUE, color="darkorange") + #alternative code y ~ -1 + I(x)
   geom_point() +
   labs(title="Relationship between Speed^2 and Stopping Distance",
        subtitle="with linear regression passing through origin in organge",
@@ -206,7 +282,7 @@ Let's visualize predictions of the stopping distance against the actual stopping
 ggplot(data = cars, 
        mapping = aes(x = dist, y = predicted_squared)) +
   geom_point() +
-  geom_line(data=cars, aes(x=dist, y=dist), color="darkblue", alpha=1)+
+  geom_line(data=cars, aes(x=dist, y=dist), color="darkblue", alpha=1)+ # or use geom_abline(color="darkblue", alpha=1)+
   labs(title = "Stopping Distance: Predicted(sq) and Observed Values",
        subtitle = "with the quadratic model, blue line represents y=x",
        x = "Actual Stopping Distance (ft)",
@@ -254,12 +330,559 @@ cars %>% ggplot(aes(x = speed, y = dist)) +
   geom_point() +
   geom_point(data=new_tibble, aes(x=speed, y=predicted), shape=8, alpha=1, color="red") +
   geom_point(data=new_tibble, aes(x=speed, y=predicted_sq), shape=8, alpha=1, color="red") +
-  #xlim(-5, 35) +
-  #ylim(-5, 150) +
+  xlim(0, 25) +
+  ylim(0, 125) +
   labs(title = "Stopping distance vs. Speed",
        subtitle = "with quadratic model in orange and linear model in red, predictions for 5 new points in * red",
        x = "Speed (mph)",
        y = "Stopping distance (ft)") +
   theme_economist()
+  #coord_fixed() # to have coordinates on the same scale, here that does not work
+```
+
+
+
+Other possible transformations to the linear regression: square root (sqrt()) vs square root -- when the data are right-skewed (agglomeration of most dots in the lower left hand quadrant). Applying the square root transformation makes the data more spread out. To see the predictions in the original scale we need to apply back transformations (^2).
+
+
+```{r}
+cars %>% 
+  ggplot(aes(x=sqrt(speed), y=dist))+
+  geom_point()+
+  geom_smooth(method='lm', se=TRUE)+
+  theme_economist()+
+  labs(title="Another model for the relationship stopping distance & speed")
+```
+
+
+```{r}
+cars_squared <- lm(dist ~ sqrt(speed), data=cars)
+
+cars_squared
+```
+
+```{r}
+summary(cars_squared)
+```
+
+
+```{r}
+explanatory_data <- tibble(speed=seq(2, 5, 0.5) ^2) # generate some speeds
+
+explanatory_data
+```
+
+
+```{r}
+prediction_data <- explanatory_data %>% 
+  mutate(dist= predict(cars_squared, explanatory_data)) # add predictions
+
+prediction_data
+```
+
+
+```{r}
+cars %>% 
+  ggplot(aes(x=sqrt(speed), y=dist))+
+  geom_point()+
+  geom_smooth(method="lm") +
+  geom_point(data=prediction_data, aes(x=sqrt(speed), y=dist), color="green", size=3)+
+  theme_economist()+
+  labs(title="Model results")
+```
+
+
+Plotting all models in the original coordinates.
+
+
+```{r}
+cars %>% ggplot(aes(x = speed, y = dist)) +
+  geom_smooth(method='lm', formula = y ~ -1 + I(x^2), se = FALSE, color="darkorange") +
+  geom_smooth(method='lm', formula = y ~ x, se = FALSE, color="darkred") +
+  geom_smooth(method='lm', formula = y ~ sqrt(x), se = FALSE, color="cornflowerblue") +
+  geom_point() +
+  geom_point(data=new_tibble, aes(x=speed, y=predicted), shape=8, alpha=1, color="red") +
+  geom_point(data=new_tibble, aes(x=speed, y=predicted_sq), shape=8, alpha=1, color="red") +
+  xlim(0, 25) +
+  ylim(0, 125) +
+  labs(title = "Stopping distance vs. Speed",
+       subtitle = "quadratic model=orange; linear model =red; sqrt model=blue; predictions for 5 new points in * red",
+       x = "Speed (mph)",
+       y = "Stopping distance (ft)") +
+  theme_economist()
+```
+
+## Analyzing residuals
+
+Using {ggfortify} to autoplot residuals
+
+In general we hope residuals are normally distributed and have a mean value of 0.
+
+Diagnostic plots:
+
+### Residuals vs fitted values with smooth loess curve
+
+If assumption respected, the trend line should follow the y=0 horizontal line. Shows whether residuals get positive or negative when the fitted values change.
+
+### Q-Q plot: do residuals follow a normal distribution?
+
+Standardized residuals (residuals divided by their standard deviation) vs. Theoretical Quantiles from the normal distribution. If the residuals from the model are normally distributed, then the points will track the line on the Q-Q plot.
+
+The model may not be a good fit for part of the data points.
+
+### Scale-location
+
+Square root of standardized residuals vs the fitted values. In a good model the size of the residuals shouldn't change much as the fitted values change.
+
+Shows whether the size of the residuals gets bigger or smaller as fitted values change. There should be no trend line, we're aiming for a loess curve that follows y=0 or a nearly horizontal line.
+
+
+```{r}
+library(ggfortify)
+
+autoplot(cars_lm, which=1)
+```
+
+Here the residuals are above 0 when the fitted values are small or big, and below zero in the middle. 
+
+
+
+```{r}
+autoplot(cars_lm, which=2)
+```
+
+
+Do residuals follow a normal distribution (are they tracking along the dotted line)? Mostly yes, but residuals are larger than expected for high values of stopping distance.
+
+
+```{r}
+autoplot(cars_lm, which=3)
+```
+
+
+Here residuals get bigger as the fitted values increase.
+
+
+```{r}
+cars_lm_squared %>% 
+  autoplot(which=1:3)
+```
+
+
+## Types of outliers
+
+
+- extreme explanatory variable values (the biggest and the smallest)
+
+```{r}
+cars %>% 
+  mutate(has_extreme_speed = speed < 5 | speed > 24) %>% 
+  ggplot(aes(x=speed, y=dist)) +
+  geom_point(aes(color=has_extreme_speed)) +
+  geom_smooth(method="lm") +
+  theme_economist()+
+  labs(title="Speed-stopping distance relationship, possible outliers",
+       subtitle="extreme speed values")
+```
+
+
+- when the point lies a long way from model predictions
+
+
+```{r}
+cars %>% 
+  mutate(has_extreme_speed = speed < 5 | speed > 24,
+         has_extreme_dist = dist>100) %>% 
+  ggplot(aes(x=speed, y=dist)) +
+  geom_point(aes(color=has_extreme_speed,
+                 shape=has_extreme_dist), size=3) +
+  geom_smooth(method="lm") +
+  theme_economist()+
+  labs(title="Speed-stopping distance relationship, possible outliers",
+       subtitle="extreme speed values")
+```
+
+
+Leverage is a measure of how extreme the outliers are based on explanatory variables (the first type of outliers).
+
+Here we can see that the two blue points in the lower left quadrant have higher leverage than the blue points in the upper right quadrant.
+
+
+
+```{r}
+# calculating leverage in R
+hatvalues(cars_lm)
+```
+
+
+```{r}
+#alternative way to calculate leverage --> .hat
+
+cars_lm %>% 
+  augment() %>% 
+  arrange(desc(.hat))
+```
+
+Influence = it shows how much the model would change if we reran it without an observation. The influence of each observation is based on size of the residuals and the leverage. We use Cook's distance, which is saved as .cooksd in the augmented results table. The bigger the number, the bigger the influence. It turn out that the highest influence point here is the one depicted as a triangle in the above graph.
+
+
+
+```{r}
+augment(cars_lm) %>% 
+  arrange(desc(.cooksd))
+  
+```
+
+
+Let's check what is the influence on the regression line of removing the observation point with the highest influence.
+
+
+
+```{r}
+# dataset without highest influence point
+
+cleaned_cars <- cars %>% 
+  filter(dist!=120) 
+
+cars %>% 
+    mutate(has_extreme_dist = dist>100) %>% 
+  ggplot(aes(x=speed, y=dist)) +
+  geom_point(aes(shape=has_extreme_dist), size=3)+
+  geom_smooth(method="lm", color="darkred", se=FALSE) +
+  geom_smooth(data=cleaned_cars, method="lm", color="cornflowerblue", se=FALSE)+
+  labs(title="Speed vs stopping distance",
+       subtitle="with and without the observation with the highest influence")
+```
+
+
+With autoplot it is also possible to plot measures related to the most influential observations.
+
+```{r}
+autoplot(cars_lm, which=4:6)
+```
+
+
+## Linear Regression with a categorical variable
+
+
+```{r}
+glimpse(mtcars)
+```
+
+First visualize.
+
+```{r}
+mtcars %>% 
+  ggplot(aes(mpg)) +
+  geom_histogram(bins=6) +
+  facet_wrap(vars(cyl)) +
+  labs(title = "Rlationship between mpg and cyl, a categorical variable",
+       x="mpg")
+```
+
+Summary statistics
+
+
+```{r}
+mtcars %>% 
+  mutate(cyl=as.factor(cyl)) %>% 
+  group_by(cyl) %>% 
+  summarize(mean_mpg_cyl =mean(mpg))
+```
+
+
+
+Now linear regression
+
+```{r}
+mtcars %>% 
+  mutate(cyl=as.factor(cyl)) %>% 
+  lm(formula = mpg ~ cyl) # notice here the intercept is the mean value for cyl4, 26-6 =19 the mean value for cyl6
+```
+
+If we force the intercept to be 0 then the LM coefficients for the factor independent variable are nothing but the by group means.
+
+```{r}
+mtcars_lm_cyl <- lm(formula = mpg ~ cyl, data=mtcars)
+```
+
+
+
+```{r}
+
+mtcars %>% 
+  mutate(cyl=as.factor(cyl)) %>% 
+  lm(formula = mpg ~ cyl + 0) ## all coefficients should be given
+```
+
+
+
+```{r}
+mtcars %>% 
+  mutate(cyl=as.factor(cyl)) %>% 
+  ggplot(aes(y=mpg, x=cyl))+
+  geom_point(alpha=0.6)+
+  geom_smooth(method='lm', formula = (y ~ x), se = TRUE)+ # this does not work
+  geom_abline(intercept=coefficients(mtcars_lm_cyl)[1], slope=coefficients(mtcars_lm_cyl)[2], color="blue")
+  
+```
+
+
+
+## Logistic regression
+
+When the dependent variable is categorical. Predictions are probabilities of vs being 1 or 0.
+
+Some descriptive statistics.
+
+```{r}
+mtcars %>% 
+  group_by(vs) %>% 
+  count()
+```
+
+```{r}
+
+mtcars %>% 
+  group_by(vs) %>% 
+  summarise(mpg_mean=mean(mpg), mpg_sd=sd(mpg))
+```
+
+
+Build a linear model.
+
+```{r}
+mtcars_lm_vs <- lm(vs ~ mpg, data=mtcars)
+
+mtcars_lm_vs
+```
+
+
+
+
+Visualizing the linear model -- the model predicts negative probabilities and probabilities greater than one in the corners, which are impossible
+
+```{r}
+
+mtcars %>% 
+  ggplot(aes(x=mpg, y=vs))+
+  geom_point(alpha=0.6)+
+  geom_abline(intercept=coefficients(mtcars_lm_vs)[1], slope=coefficients(mtcars_lm_vs)[2], color="blue")+
+  xlim(0, 35)+
+  ylim(-0.2, 1.2)
+```
+
+
+the code above is equivalent to running a generalized linear model with family=gaussian (family of distributions used for the residuals)
+
+
+```{r}
+glm(formula = vs ~ mpg, data=mtcars, family = gaussian())
+```
+
+
+
+The solution is to use a logistic regression.
+
+```{r}
+mtcars_bin_vs <- glm(formula = vs ~ mpg, data = mtcars, family = binomial())
+
+mtcars_bin_vs
+```
+
+
+Let's add the new prediction line to the plot: now the predicted probabilities lie between 0 and 1. When mpg values are small, vs values are predicted close to 0, and vice-versa.
+
+```{r}
+mtcars %>% 
+  ggplot(aes(x=mpg, y=vs))+
+  geom_point(alpha=0.6)+
+  geom_abline(intercept=coefficients(mtcars_lm_vs)[1], slope=coefficients(mtcars_lm_vs)[2], color="blue")+
+  geom_smooth(method = "glm", se=FALSE, method.args=list(family=binomial), color="orange")+
+  xlim(0, 35)+
+  ylim(-0.2, 1.2)
+```
+
+
+
+Let's make some predictions
+
+```{r}
+
+# create an explanatory tibble/ new unseen data
+
+explanatory_data <- tibble(mpg=seq(10, 27, 5))
+
+# generate predictions for the unseen points
+
+prediction_data <- explanatory_data %>% 
+  mutate(vs=predict(mtcars_bin_vs, explanatory_data, type="response")) # note need to set type to response
+
+prediction_data
+
+```
+
+
+```{r}
+mtcars %>% 
+  ggplot(aes(x=mpg, y=vs))+
+  geom_point(alpha=0.6)+
+  geom_abline(intercept=coefficients(mtcars_lm_vs)[1], slope=coefficients(mtcars_lm_vs)[2], color="blue")+
+  geom_smooth(method = "glm", se=FALSE, method.args=list(family=binomial), color="orange")+
+  geom_point(data=prediction_data, color="green")+
+  xlim(0, 35)+
+  ylim(-0.2, 1.2)
+```
+
+
+
+But better still we can calculate the most likely outcome for each of the unseen points. All values with predicted probability above 0.5 become vs=1. one disadvantage is that it lacks precision.
+
+
+
+```{r}
+prediction_data <- prediction_data %>% 
+  mutate(most_likely_outcome = round(vs)) 
+
+
+prediction_data
+```
+
+
+
+```{r}
+mtcars %>% 
+  ggplot(aes(x=mpg, y=vs))+
+  geom_point(alpha=0.6)+
+  geom_abline(intercept=coefficients(mtcars_lm_vs)[1], slope=coefficients(mtcars_lm_vs)[2], color="blue")+
+  geom_smooth(method = "glm", se=FALSE, method.args=list(family=binomial), color="orange")+
+  geom_point(data=prediction_data, color="green", aes(y=most_likely_outcome))+
+  xlim(0, 35)+
+  ylim(-0.2, 1.2)
+```
+
+Odds ratio = probability of something happening divided by the probability that it doesn't.
+
+
+
+```{r}
+prediction_data %>% 
+  mutate(odds_ratio = vs/(1-vs))
+```
+
+
+
+We can visualize the odds ratio in a separate plot. In the top right the chance of vs=1 is about 7 times the chance of vs=0.
+
+
+```{r}
+prediction_data %>% 
+  mutate(odds_ratio = vs/(1-vs)) %>% 
+  ggplot(aes(x= mpg, y=odds_ratio)) +
+  geom_line() +
+  geom_hline(yintercept = 1, linetype="dotted")+
+  labs(title="Odds ratio for the 4 unseen points", 
+       subtitle = "At the dotted line vs-predicted values are just as likely 0 or 1")
+```
+
+Log odds ratio = they change linearly with the explanatory variable. This is the same as the predicted values from the logistic model
+
+
+```{r}
+prediction_data %>% 
+  mutate(odds_ratio = vs/(1-vs)) %>% 
+  ggplot(aes(x= mpg, y=odds_ratio)) +
+  geom_line() +
+  geom_hline(yintercept = 1, linetype="dotted")+
+  labs(title="Log odds ratio for the 4 unseen points", 
+       subtitle = "with a logarithmic y scale") +
+  scale_y_log10()
+```
+
+
+```{r}
+prediction_data %>% 
+  mutate(odds_ratio = vs/(1-vs),
+         log_odds_ratio = log(odds_ratio),
+         log_odds_ratio2 = predict(mtcars_bin_vs, explanatory_data)) 
+```
+
+
+
+## Evaluating logistic regression models
+
+With confusion matrices
+
+```{r}
+
+# this is the model to evaluate
+mtcars_bin_vs
+```
+
+
+```{r}
+
+# this is the original data on vs
+actual_response <- mtcars$vs
+
+actual_response
+```
+
+
+
+```{r}
+# the most likely outcome predicted for the original data points
+
+predicted_response <- round(fitted(mtcars_bin_vs))
+
+predicted_response
+```
+
+
+```{r}
+# bring actual and predicted value together in a table
+
+confusion_matrix <- table(actual_response, predicted_response)
+
+confusion_matrix
+```
+
+We can use the {yardstick} package to easily visualize confustion matrices
+
+```{r}
+library(yardstick)
+
+confusion <- conf_mat(confusion_matrix)
+
+confusion
+```
+
+
+```{r}
+autoplot(confusion)
+```
+
+Performance metrics
+
+```{r}
+summary(confusion)#, event_level = "second") use this when dependent variable only takes 0 and 1 values
+```
+
+
+```{r}
+#accuracy =total correct predictions/total observations
+
+summary(confusion) %>% 
+  slice(1)
+```
+
+```{r}
+summary(confusion) %>% 
+  slice(11)
+```
+
+```{r}
+summary(confusion) %>% 
+  slice(12)
 ```
 
