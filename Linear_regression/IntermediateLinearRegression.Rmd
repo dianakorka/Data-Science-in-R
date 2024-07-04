@@ -1,0 +1,593 @@
+---
+title: "Intermediate Linear Regression"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Parallel slopes linear regression
+
+
+
+
+```{r message=FALSE, warning=FALSE}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(visdat)
+library(tidyr)
+library(ggthemes)
+
+glimpse(mtcars)
+```
+
+
+Linear regression including one continuous and one categorical variable.
+First separately.
+
+
+```{r}
+lm(formula= mpg  ~ disp, data=mtcars)
+```
+
+```{r}
+summary(lm(formula= mpg  ~ disp, data=mtcars))
+```
+
+
+
+
+```{r}
+mtcars %>% 
+  mutate(cyl=as.factor(cyl)) %>% 
+  lm(formula = mpg  ~ cyl + 0)
+```
+
+
+```{r}
+summary(mtcars %>% 
+  mutate(cyl=as.factor(cyl)) %>% 
+  lm(formula = mpg  ~ cyl + 0))
+```
+
+
+And now with both variables at the same time
+
+```{r}
+mdl_mtcars_disp_cyl <- mtcars %>% 
+  mutate(cyl=as.factor(cyl)) %>% 
+  lm(formula= mpg  ~ disp + cyl +0)
+
+mdl_mtcars_disp_cyl
+```
+
+```{r}
+summary(mdl_mtcars_disp_cyl)
+```
+
+Visualizing the data - with a single explanatory categorical variable, the predictions are the emans for each category.
+
+```{r}
+mtcars %>% 
+  mutate(cyl=as.factor(cyl)) %>% 
+  ggplot(aes(x=cyl, y=mpg))+
+  geom_boxplot()+
+  stat_summary(fun = mean, shape=15)+
+  labs(title="Mpg distribution by type of cyl",
+       subtitle="squares= sample means")
+```
+
+
+
+```{r}
+mtcars %>% 
+  ggplot(aes(x=disp, y=mpg))+
+  geom_point()+
+  geom_smooth(method="lm", se=FALSE)
+```
+
+
+Visualizing both explanatory variables: the parallel slope model name comes from the fact that the prediction for each category has its own slope and all those slopes are parallel.
+
+
+
+```{r}
+library(moderndive)
+
+
+mtcars %>% 
+  mutate(cyl=as.factor(cyl)) %>% 
+  ggplot(aes(x=disp, y=mpg, color=cyl))+
+  geom_point()+
+  geom_parallel_slopes()
+```
+
+Interpretation of the coefficients: 
+
+For each additional unit of **disp** the expected **mpg** value decreases by 0.02731 (significant at 0.5).
+
+For a car with **cyl6** with disp=0 the expected mpg value is of 24.74892 (= where the green line intersects the y axis).
+
+
+The prediction workflow
+
+
+```{r}
+# expand_grid from {tidyr} gives a combination of all inputs
+
+explanatory_data <- expand_grid(disp=seq(100, 400, 70),
+                                cyl=unique(mtcars$cyl)) %>% 
+                        mutate(cyl=as.factor(cyl))
+
+explanatory_data
+```
+
+
+Next, add predictions to the explanatory dataframe.
+
+```{r}
+prediction_data <- explanatory_data %>% 
+  mutate(mpg = predict(mdl_mtcars_disp_cyl, explanatory_data))
+
+prediction_data
+```
+
+
+Show that predictions for unseen data lie along the parallel slopes.
+
+
+
+```{r}
+library(moderndive)
+
+
+mtcars %>% 
+  mutate(cyl=as.factor(cyl)) %>% 
+  ggplot(aes(x=disp, y=mpg, color=cyl)) +
+  geom_point()+
+  geom_parallel_slopes()+
+  geom_point(data=prediction_data, size=3, shape=15, 
+             aes(x=disp, y=mpg, color=cyl))
+
+```
+
+Code for accessing the predicted coefficients:
+
+
+```{r}
+coefficients(mdl_mtcars_disp_cyl)
+```
+
+
+
+Final prediction step. Calculate predictions manually based on intercept (different intercept per cyl) and slope (one single slope).
+
+
+```{r}
+explanatory_data %>% 
+  mutate(intercept= case_when(cyl==4  ~ coefficients(mdl_mtcars_disp_cyl)[2],
+                              cyl==6 ~  coefficients(mdl_mtcars_disp_cyl)[3],
+                              cyl==8 ~ coefficients(mdl_mtcars_disp_cyl)[4])) %>% 
+  mutate(mpg_predicted = intercept + disp* coefficients(mdl_mtcars_disp_cyl)[1])
+          
+```
+
+
+Assessing model performance
+
+Coefficient of determination: R-squared - the bigger the better. Adjusted R-squared includes a penalty for additional explanatory variables (to guard against overfitting).
+
+RSE (residual standard error): the typical size of the residuals. The smaller, the better. **Sigma** is the name of this variable in the glance table.
+
+
+This is for the composed model.
+
+```{r}
+library(broom)
+
+glance(mdl_mtcars_disp_cyl)
+```
+
+
+This is for the two simple models.
+
+
+```{r}
+glance(lm(formula= mpg  ~ disp, data=mtcars))
+```
+
+
+```{r}
+glance(mtcars %>% 
+  mutate(cyl=as.factor(cyl)) %>% 
+  lm(formula = mpg  ~ cyl + 0))
+```
+
+## Models for each category
+
+Specify interactions between explanatory variables
+
+```{r}
+# implicit
+
+mtcars <- mtcars %>% 
+  mutate(cyl=as.factor(cyl))
+
+lm(mpg ~ disp* cyl, data=mtcars)
+```
+
+
+```{r}
+#explicit
+
+lm(mpg ~ disp + cyl + disp:cyl, data=mtcars)
+```
+
+
+For easier to understand coefficients, new formula: intercept for each cyl type and intercept coefficients for each cyl type.
+
+
+```{r}
+mdl_interact_disp_cyl <- lm(formula = mpg ~ cyl + cyl:disp + 0, data=mtcars)
+
+mdl_interact_disp_cyl
+```
+
+
+This is the same as splitting the dataset into 3 categories (for each cyl category) and running separately 3 different models.
+
+Interpretation: the expected increase in mpg from increases in disp is largest for cyl 6 (largest interaction coefficient).
+
+
+Making predictions
+
+```{r}
+explanatory_data <- expand_grid(disp=seq(100, 400, 100),
+                                cyl=unique(mtcars$cyl))
+
+explanatory_data
+```
+
+
+```{r}
+prediction_data<- explanatory_data %>% 
+  mutate(mpg=predict(mdl_interact_disp_cyl, explanatory_data))
+
+prediction_data
+```
+
+
+
+Plotting predictions
+
+
+```{r}
+mtcars %>% 
+  ggplot(aes(x=disp, y=mpg, color=cyl)) +
+  geom_point() +
+  geom_smooth(method="lm", se=FALSE) +
+  geom_point(data=prediction_data, size=3, shape=15)
+```
+
+## Simpson's Paradox
+
+The trend/slope of a model on the whole dataset is very different from the trends shown by models on subsets of the dataset --> this is why it is advisable to plot the data. The choice of model depends on the question to answer.
+
+In the model above, overall there is a negative relationship between disp and mpg, however for cars with cyl6 the relationship is close to nonexistent (when disp changes mpg stays the same or increases slightly). 
+
+
+## Multiple Linear Regression (two or more numerical independent vars)
+
+
+We'll look at disp and hp.
+
+First visualizing: 
+
+2D color plot with response=color
+
+```{r}
+mtcars %>% 
+  ggplot(aes(x=disp, y=hp, color=mpg)) +
+  geom_point()+
+  labs(title="Linear regrression with two continuous variables") +
+  scale_color_viridis_c(option="plasma")
+
+```
+
+
+Modeling: obtain one intercept and one slope coefficient for each variable.
+
+
+
+```{r}
+mdl_multi_mpg <- lm(data=mtcars,
+                    formula = mpg ~ disp + hp)
+
+mdl_multi_mpg
+```
+
+Prediction flow
+
+
+```{r}
+explanatory_data <- expand_grid(disp=seq(100, 400, 100),
+                                hp=seq(50, 300, 100))
+
+explanatory_data
+```
+
+```{r}
+prediction_data<- explanatory_data %>% 
+  mutate(mpg=predict(mdl_multi_mpg, explanatory_data))
+
+prediction_data
+```
+
+
+Plotting the predictions
+
+```{r}
+mtcars %>% 
+  ggplot(aes(x=disp, y=hp, color=mpg)) +
+  geom_point() +
+  labs(title="Linear regrression with two continuous variables") +
+  scale_color_viridis_c(option="plasma") +
+  geom_point(data=prediction_data, shape=15, size=3)
+```
+
+
+
+We can include an interaction in the model
+
+```{r}
+mdl_multi_inter_mpg <- lm(data=mtcars,
+                    formula = mpg ~ disp * hp)
+
+mdl_multi_inter_mpg
+```
+
+
+Predicting and plotting the results are the same.
+
+
+```{r}
+prediction_data<- explanatory_data %>% 
+  mutate(mpg=predict(mdl_multi_inter_mpg, explanatory_data))
+
+prediction_data
+```
+
+
+
+```{r}
+mtcars %>% 
+  ggplot(aes(x=disp, y=hp, color=mpg)) +
+  geom_point() +
+  labs(title="Linear regrression with two continuous variables",
+       subtitle = "with interaction term") +
+  scale_color_viridis_c(option="plasma") +
+  geom_point(data=prediction_data, shape=15, size=3)
+```
+
+Visualizing the data when there are more than 2 explanatory variables.
+
+
+```{r}
+mtcars %>% 
+  ggplot(aes(x=disp, y=hp, color=mpg)) +
+  geom_point() +
+  labs(title="Linear regrression with two continuous variables",
+       subtitle = "with interaction term") +
+  scale_color_viridis_c(option="plasma") +
+  facet_wrap(vars(cyl)) 
+```
+
+
+```{r}
+# no interactions
+
+lm(mpg~disp + hp + cyl + 0, data=mtcars)
+
+# two-way interactions -- or use mpg ~ (disp + hp + cyl)^2
+
+lm(mpg~disp + hp + cyl + disp:hp + disp:cyl + hp:cyl + 0, data=mtcars)
+
+
+# three-way interactions -- or use mpg ~ disp * hp * cyl
+
+lm(mpg~disp + hp + cyl + disp:hp + disp:cyl + hp:cyl + disp:hp:cyl + 0, data=mtcars)
+```
+
+## Multiple logistic regression
+
+Using the same dataset we'll aim to estimate the type of vs based on continuous variables mpg and disp.
+
+
+```{r}
+mtcars %>% 
+  select(vs, mpg, disp) %>% 
+  head()
+```
+
+
+For writing our model we'll need to use the gml function and set the family attribute to **binominal**.
+
+
+```{r}
+
+# with no interactions
+glm(vs ~ mpg + disp, data=mtcars, family=binomial)
+
+# with interactions use * instead of + between the variables
+
+glm(vs ~ mpg * disp, data=mtcars, family=binomial)
+```
+
+For predictions everything is the same as before, just do not forget to set type="response" in the call to predict.
+
+
+Visualising the data
+
+
+```{r}
+mtcars %>% 
+  ggplot(aes(x=mpg, y=disp, color=vs)) +
+  geom_point() +
+  scale_color_gradient2(midpoint=0.5) + # can only use this with 1-0 variables like vs
+labs(title="Predicting vs based on mpg and disp")
+```
+
+Fit the model
+
+
+```{r}
+mdl_logistic_vs_disp_mpg <- glm(data=mtcars, formula = vs~ mpg + disp, family = binomial)
+mdl_logistic_vs_disp_mpg
+```
+
+Make predictions for unseen points
+
+```{r}
+explanatory_data <- expand_grid(mpg=seq(10, 35, 3),
+                                disp=seq(50, 500, 15))
+
+explanatory_data %>% 
+  head()
+```
+
+**Do not forget to set type="response"!**
+
+
+```{r}
+prediction_data <- explanatory_data%>%
+  mutate(vs = predict(mdl_logistic_vs_disp_mpg, explanatory_data, type="response"))
+
+prediction_data %>% 
+  head()
+```
+
+Extend the plot with the predictions
+
+
+```{r}
+mtcars %>% 
+  ggplot(aes(x=mpg, y=disp, color=vs)) +
+  geom_point() +
+  scale_color_gradient2(midpoint=0.5) + # can only use this with 1-0 variables like vs
+labs(title="Predicting vs based on mpg and disp",
+     subtitle="with many prediction points overlayed in square shapes") +
+  geom_point(data=prediction_data, size=3, shape=15)
+```
+
+
+Drawing the confusion matrix
+
+```{r}
+actual_response <- mtcars$vs
+
+predicted_response <- round(fitted(mdl_logistic_vs_disp_mpg))
+
+outcomes <- table(actual_response, predicted_response)
+
+outcomes
+```
+
+
+```{r}
+library(yardstick)
+
+autoplot(conf_mat(outcomes))
+```
+
+Get summary statistics
+
+```{r}
+summary(conf_mat(outcomes), event_level = "second")
+```
+
+## The logistic distribution
+
+
+```{r}
+gaussian_dist <- tibble(x=seq(-4, 4, 0.20),
+                        gauss_pdf_x=dnorm(x))
+
+gaussian_dist
+```
+
+
+```{r}
+gaussian_dist %>% 
+  ggplot(aes(x, gauss_pdf_x)) +
+  geom_line() +
+  labs(title="The PDF of the normal distribution")
+```
+
+for the CDF
+
+```{r}
+gaussian_dist %>% 
+  mutate(gauss_cdf_x=pnorm(x)) %>% 
+  ggplot(aes(x, gauss_cdf_x)) +
+  geom_line() +
+  labs(title="The CDF of the normal distribution")
+```
+
+When x has its minimum possible value (minus infinity), the CDF will be 0, when x has its maximum possible value, the CDF will be 1. The CDF is a transformation from the values of x to probabilities. When x=1, the CDF is 0.84, meaning that the probability that x is less than 1 is 84%. 
+
+To get from probabilities back to x values we use the inverse CDF
+
+```{r}
+gaussian_icdf <- 
+  tibble(p= seq(0.001, 0.999, 0.001),
+          gauss_inv_cdf_p = qnorm(p)) 
+
+gaussian_icdf %>% 
+  ggplot(aes(p, gauss_inv_cdf_p)) +
+  geom_line()+
+  labs(title="The inverse CDF of the normal distribution")
+```
+
+PDF .....dnorm() ... dlogis()...... d is for differentiate because you differentiate the CDF to get the PDF
+
+CDF .....pnorm().....plogis()......p is backwards q, so the inverse of the inverse CDF
+
+Inverse CDF ....qnorm()....qlogis()......q for quintile
+
+
+
+```{r}
+
+logistic_dist <- tibble(x=seq(-6, 6, 0.20),
+                        logis_pdf_x=dlogis(x))
+logistic_dist %>% 
+  ggplot(aes(x, logis_pdf_x)) +
+  geom_line() +
+  labs(title="The PDF of the logistic distribution")
+```
+
+```{r}
+logistic_dist %>% 
+  mutate(logis_cdf_x=plogis(x)) %>% 
+  ggplot(aes(x, logis_cdf_x)) +
+  geom_line() +
+  labs(title="The CDF of the logistic distribution",
+       substitle="also called logistic function")
+```
+
+
+
+```{r}
+logistic_icdf <- 
+  tibble(p= seq(0.001, 0.999, 0.001),
+          logis_inv_cdf_p = qlogis(p)) 
+
+logistic_icdf %>% 
+  ggplot(aes(p, logis_inv_cdf_p)) +
+  geom_line()+
+  labs(title="The inverse CDF of the logistic distribution",
+       subtitle = "also called logit function")
+```
+

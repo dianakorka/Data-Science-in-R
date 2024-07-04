@@ -137,7 +137,7 @@ The coefficient of determination (R-squared) = the proportion of the variance in
 
 Residual standard error (RSE) = difference between predicted value and observed value = how much the predictions are typically wrong by, same measurement unit as the response variable. The model above is wrong by about 15 ft. This measure appears as sigma in the glance()-generated model-level values tibble. It is a measure of accuracy for regression models.
 
-Another related measure is root mean-square error (RMSE), with a slightly different calculations. Quantifies how inaccurate the predictions are 
+Another related measure is root mean-square error (RMSE), with a slightly different calculation. Quantifies how inaccurate the predictions are.
 
 
 Below is some code on how to access different elements from the summary() function of the linear model.
@@ -683,6 +683,7 @@ glm(formula = vs ~ mpg, data=mtcars, family = gaussian())
 
 
 The solution is to use a logistic regression.
+
 
 ```{r}
 mtcars_bin_vs <- glm(formula = vs ~ mpg, data = mtcars, family = binomial())

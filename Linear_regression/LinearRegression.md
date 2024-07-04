@@ -204,8 +204,8 @@ model-level values tibble. It is a measure of accuracy for regression
 models.
 
 Another related measure is root mean-square error (RMSE), with a
-slightly different calculations. Quantifies how inaccurate the
-predictions are
+slightly different calculation. Quantifies how inaccurate the
+predictions are.
 
 Below is some code on how to access different elements from the
 summary() function of the linear model.
