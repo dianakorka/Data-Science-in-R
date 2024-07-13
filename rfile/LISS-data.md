@@ -20,14 +20,23 @@ library(stringr)
 ```
 
 With the code below we read panel data year by year, starting with 2023
-and keep only the variables of interest.
+and keep only the variables of interest: propensity to vote and
+political orientation.
+
+We also keep age as this is included in the dataset and may be useful as
+a covariate.
+
+We start with the 2023 panel data and then apply the same trabsformation
+to the 2022-2019 data.
+
+### Data transformation step by step for 2023 panel data
 
 ``` r
 data23 <- read_delim("~/Documents/Amsterdam/rfile/cv23o_EN_1.0p.csv", 
     delim = ";", escape_double = FALSE, trim_ws = TRUE)
 ```
 
-Just checking how many rows and columns.
+Checking how many rows and columns there are in the original dataset.
 
 ``` r
 dim(data23)
@@ -68,10 +77,13 @@ data23_cleaned <- data23 %>%
 ```
 
 Below some descriptive statistics of the 2023 panel data, the variables
-of interest. Notice that some observations encoded with -9 are
-impossible and for the propensity to vote there are 525 missing values.
-Similarly for political orientation there are 421 missing values. We
-have to choice but to drop these from our sample.
+of interest.
+
+Notice that some observations encoded with -9 are impossible and for the
+propensity to vote there are 525 missing values. Similarly for political
+orientation there are 421 missing values.
+
+We have no choice but to drop these from our sample.
 
 ``` r
 data23_cleaned %>% 
@@ -169,6 +181,8 @@ data23_cleaned %>%
     ##  3rd Qu.:2023  
     ##  Max.   :2023
 
+### Visualizing the data distributions
+
 And a quick visualisation of our data before recoding.
 
 ``` r
@@ -222,7 +236,8 @@ data23_cleaned %>%
 ![](LISS-data_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
 
 Below we recode the political orientation data such that LEFT=0 for
-values from 0 to 5 (including), and RIGHT=1 for values from 6 to 10.
+values from 0 to 5 (including), and RIGHT=1 for values from 6 to 10 –\>
+into a new variable called **right**.
 
 ``` r
 data23_cleaned <- data23_cleaned %>% 
@@ -230,7 +245,8 @@ data23_cleaned <- data23_cleaned %>%
   mutate(right=as.factor(right))
 ```
 
-Check how propensity to vote varies by the newly created right variable.
+Check how propensity to vote varies by the newly created **right**
+variable.
 
 ``` r
 data23_cleaned %>% 
@@ -299,7 +315,7 @@ data23_cleaned %>%
 
 ![](LISS-data_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
 
-## Now we apply the same transformation to 2022 data below
+### Reading and transforming 2022 data below
 
 ``` r
 data22 <- read_delim("~/Documents/Amsterdam/rfile/cv22n_EN_1.0p.csv", 
@@ -317,7 +333,7 @@ data22_cleaned <- data22 %>%
   mutate(right=as.factor(right))
 ```
 
-Descriptive statistics for the 2022 data.
+### Descriptive statistics and visualisations for the 2022 data
 
 ``` r
 data22_cleaned %>% 
@@ -496,7 +512,7 @@ data22_23 %>%
     ## 1 0                     92.8            17.4              91.5            19.2
     ## 2 1                     93.1            16.8              91.8            18.2
 
-## Reading data and apply the same transformation to 2021, 2020, 2019 panels
+### Reading data and apply the same transformations to 2021, 2020, 2019 panels
 
 ``` r
 data21 <- read_dta("cv21m_EN_1.0p.dta")
@@ -537,7 +553,7 @@ data19_cleaned <- data19 %>%
   mutate(right.19=as.factor(right.19))
 ```
 
-## Joining together all dataset for all 5 years
+### Joining together datasets for all 5 years
 
 ``` r
 library(plyr)
@@ -574,8 +590,74 @@ nrow(panel_19_23)
 
     ## [1] 2078
 
+In the 2019 data there is an error in the reported propensity to vote
+data 999, which is not contained in the 0-100 scale. Same situation for
+political_orientation.
+
+``` r
+panel_19_23 %>% 
+  filter(propensity_to_vote.19==999)
+```
+
+    ##   nomem_encr age.19 propensity_to_vote.19 political_orientation.19
+    ## 1     801205     63                   999                        4
+    ## 2     886367     38                   999                        5
+    ##   survey_year.19 right.19 age.20 propensity_to_vote.20 political_orientation.20
+    ## 1           2019        0     64                   100                        4
+    ## 2           2019        0     39                   100                        2
+    ##   survey_year.20 right.20 age.21 propensity_to_vote.21 political_orientation.21
+    ## 1           2020        0     65                   100                        4
+    ## 2           2020        0     40                   100                        3
+    ##   survey_year.21 right.21 age.22 propensity_to_vote.22 political_orientation.22
+    ## 1           2021        0     66                   100                        4
+    ## 2           2021        0     41                   100                        4
+    ##   survey_year.22 right.22 age.23 propensity_to_vote.23 political_orientation.23
+    ## 1           2022        0     67                   100                        4
+    ## 2           2022        0     42                   100                        4
+    ##   survey_year.23 right.23
+    ## 1           2023        0
+    ## 2           2023        0
+
+We think that for propensity to vote the error comes from typing 999
+instead of 99 for the two samples above, so we make this replacement.
+
+``` r
+panel_19_23 <- panel_19_23 %>% 
+  mutate(propensity_to_vote.19=if_else(propensity_to_vote.19==999, true=99, false=propensity_to_vote.19)) 
+```
+
+And now checking for 999 values in political orientation: there are 47
+observations for which this was encoded as 999. Given that they did not
+swing in following years. Not to loose any further data, for these 47
+people we will use the political orientation score reported in 2020. If
+over the following years they swinged from left to right, they will be
+dropped from the analysis.
+
+``` r
+panel_19_23 %>% 
+  filter(political_orientation.19==999) %>% 
+  dim()
+```
+
+    ## [1] 47 26
+
+``` r
+panel_19_23 <- panel_19_23 %>% 
+  mutate(political_orientation.19=if_else(political_orientation.19==999, 
+                                          true=political_orientation.20, false=political_orientation.19),
+         right.19=case_when(political_orientation.19<=5 ~ 0, TRUE ~ 1)) %>% 
+  mutate(right.19=as.factor(right.19))
+```
+
+``` r
+panel_19_23 %>% 
+  dim()
+```
+
+    ## [1] 2078   26
+
 We try to filter out anyone who swinged left-right and vice-versa over
-the entire period. And we are left with 1633 observations.
+the entire period. And we are left with 1658 observations.
 
 ``` r
 panel_19_23 %>% 
@@ -585,14 +667,14 @@ panel_19_23 %>%
   dim()
 ```
 
-    ## [1] 1633   26
+    ## [1] 1658   26
 
 ``` r
 panel_19_23 %>% 
   filter(right.22==right.21) %>% 
   filter(right.21==right.20) %>% 
   filter(right.20==right.19) %>% 
-  group_by(right.19) %>% 
+  group_by(right.20) %>% 
   dplyr:: summarise(mean_prop_vote_19= mean(propensity_to_vote.19),
                     mean_prop_vote_20= mean(propensity_to_vote.20),
             mean_prop_vote_21=mean(propensity_to_vote.21),
@@ -602,45 +684,49 @@ panel_19_23 %>%
             sd_prop_vote_20=sd(propensity_to_vote.20),
             sd_prop_vote_21=sd(propensity_to_vote.21),
             sd_prop_vote_22=sd(propensity_to_vote.22),
-            sd_prop_vote_23=sd(propensity_to_vote.23))
+            sd_prop_vote_23=sd(propensity_to_vote.23)) %>% 
+  ungroup()
 ```
 
     ## # A tibble: 2 × 11
-    ##   right.19 mean_prop_vote_19 mean_prop_vote_20 mean_prop_vote_21
+    ##   right.20 mean_prop_vote_19 mean_prop_vote_20 mean_prop_vote_21
     ##   <fct>                <dbl>             <dbl>             <dbl>
-    ## 1 0                     96.5              94.4              94.6
+    ## 1 0                     94.0              94.0              94.5
     ## 2 1                     93.1              93.0              94.4
     ## # ℹ 7 more variables: mean_prop_vote_22 <dbl>, mean_prop_vote_23 <dbl>,
     ## #   sd_prop_vote_19 <dbl>, sd_prop_vote_20 <dbl>, sd_prop_vote_21 <dbl>,
     ## #   sd_prop_vote_22 <dbl>, sd_prop_vote_23 <dbl>
+
+Below plotting the summary data from above in a line chart.
 
 ``` r
 panel_19_23 %>% 
   filter(right.22==right.21) %>% 
   filter(right.21==right.20) %>% 
   filter(right.20==right.19) %>% 
-  group_by(right.19) %>% 
+  group_by(right.20) %>% 
   dplyr:: summarise(m2019= mean(propensity_to_vote.19),
                     m2020= mean(propensity_to_vote.20),
             m2021=mean(propensity_to_vote.21),
             m2022= mean(propensity_to_vote.22),
             m2023=mean(propensity_to_vote.23)) %>% 
-  pivot_longer(cols=c(-right.19),
+  ungroup() %>% 
+  pivot_longer(cols=c(-right.20),
                names_to="year",
                values_to="mean") %>% 
   mutate(year=str_remove(year, "m")) %>% 
   mutate(year=as.numeric(year)) %>% 
-  ggplot(aes(x=year, y=mean, color=right.19))+
+  ggplot(aes(x=year, y=mean, color=right.20))+
   geom_point()+
   geom_line()+
   labs(title="Mean propensity to vote by political orientation",
        subtitle = "1=right-leaning, 0=left-leaning, no swing",
-       caption="LISS Panel data 2019-2023: 1633 observations")
+       caption="LISS Panel data 2019-2023: 1658 observations")
 ```
 
-![](LISS-data_files/figure-gfm/unnamed-chunk-39-1.png)<!-- -->
+![](LISS-data_files/figure-gfm/unnamed-chunk-44-1.png)<!-- -->
 
-In our panel 2019-2023, 841 respondents were left-leaning and 792 were
+In our panel 2019-2023, 792 respondents were left-leaning and 866 were
 right leaning.
 
 ``` r
@@ -648,12 +734,72 @@ panel_19_23 %>%
   filter(right.22==right.21) %>% 
   filter(right.21==right.20) %>% 
   filter(right.20==right.19) %>% 
-  group_by(right.19) %>% 
-  dplyr:: summarise(count=n())
+  group_by(right.20) %>% 
+  dplyr:: summarise(count=n()) %>% 
+  ungroup()
 ```
 
     ## # A tibble: 2 × 2
-    ##   right.19 count
+    ##   right.20 count
     ##   <fct>    <int>
-    ## 1 0          841
+    ## 1 0          866
     ## 2 1          792
+
+### Visualizing the data
+
+Transforming the data into a longer tibble for visualisation (yearly
+data stacked).
+
+``` r
+panel19_23_stacked <- panel_19_23 %>% 
+  filter(right.22==right.21) %>% 
+  filter(right.21==right.20) %>% 
+  filter(right.20==right.19)  %>% 
+    mutate(right.19=as.numeric(right.19),
+         right.20=as.numeric(right.20),
+         right.21=as.numeric(right.21),
+         right.22=as.numeric(right.22),
+         right.23=as.numeric(right.23))%>% 
+  pivot_longer(col=c(-nomem_encr), names_to="metrics", values_to = "values") %>% 
+  mutate(year=str_sub(metrics, start=-2),
+         metrics=str_remove(metrics, ".\\d\\d")) %>% 
+  pivot_wider(names_from = metrics, values_from = values) %>% 
+  select(-year) %>% 
+  mutate(right=if_else(right==1, true=0, false=1)) %>% 
+  mutate(right=as.factor(right))
+```
+
+``` r
+panel19_23_stacked %>% 
+  ggplot(aes(x=right, y=propensity_to_vote))+
+  geom_boxplot(fill="cornflowerblue")+
+  coord_flip()+
+  geom_point(size=1, alpha=0.3)+
+  labs(title = "Boxplot propensity to vote by political orientation for 2019-2023",
+       subtitle = "1=right-leaning, 0=left-leaning",
+       x="",
+       caption="LISS2019-2023 panel data")
+```
+
+![](LISS-data_files/figure-gfm/unnamed-chunk-47-1.png)<!-- -->
+
+``` r
+panel19_23_stacked %>% 
+  group_by(right) %>% 
+  dplyr:: summarise(mean_political_orientation = mean(political_orientation),
+            median_political_orientation=median(political_orientation),
+            sd_political_orientation=sd(political_orientation),
+            mean_propensity_to_vote= mean(propensity_to_vote),
+            median_propensity_to_vote= median(propensity_to_vote),
+            sd_propensity_to_vote=sd(propensity_to_vote)) %>% 
+  t()
+```
+
+    ##                              [,1]        [,2]       
+    ## right                        "0"         "1"        
+    ## mean_political_orientation   "3.386143"  "7.328535" 
+    ## median_political_orientation "3"         "7"        
+    ## sd_political_orientation     "1.2040941" "0.9537916"
+    ## mean_propensity_to_vote      "94.03395"  "93.41515" 
+    ## median_propensity_to_vote    "100"       "100"      
+    ## sd_propensity_to_vote        "15.37547"  "15.67016"
