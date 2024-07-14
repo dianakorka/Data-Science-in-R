@@ -20,14 +20,15 @@ library(stringr)
 ```
 
 With the code below we read panel data year by year, starting with 2023
-and keep only the variables of interest: propensity to vote and
-political orientation.
+and until 2019 and keep only the variables of interest: propensity to
+vote and political orientation. The data cleaning for the set of
+covariates is done separately as data comes from a different file.
 
-We also keep age as this is included in the dataset and may be useful as
-a covariate.
+We also keep age, as this is included in the Politics and Values Section
+and may be useful as a covariate.
 
-We start with the 2023 panel data and then apply the same trabsformation
-to the 2022-2019 data.
+We start with the 2023 panel data and then apply the same
+transformations to the 2022-2019 data.
 
 ### Data transformation step by step for 2023 panel data
 
@@ -48,23 +49,12 @@ Keep only the few variables of interest:
 
 nomem_encr Number of household member encrypted
 
-cv23o_m1 Year and month of the field work period - part 1
-
-cv23o_m2 Year and month of the field work period - part 2
-
-cv23o_m3 Year and month of the field work period - part 3
+cv23o_m1 Year and month of the field work period - part 3
 
 cv23o160 Preloaded variable: age – part 2
 
-cv23o242 Which version of the voting questions was presented? – part 2
-
 cv23o243 If parliamentary elections were held today, what is the percent
 chance that you will vote?
-
-cv23o261 What is the percent chance that you will vote for: I don’t know
-
-cv23o262 What is the percent chance that you will vote for: I prefer not
-to say
 
 cv23o101 Where would you place yourself on the scale below, where 0
 means left and 10 means right? Since there are 10 answer possibilities,
@@ -73,7 +63,7 @@ RIGHT=1 for values from 6 to 10.
 
 ``` r
 data23_cleaned <- data23 %>% 
-  select(nomem_encr, cv23o_m1, cv23o_m2, cv23o_m3, cv23o160, cv23o242, cv23o243, cv23o261, cv23o262, cv23o101)
+  select(nomem_encr, cv23o_m3, cv23o160, cv23o243, cv23o101)
 ```
 
 Below some descriptive statistics of the 2023 panel data, the variables
@@ -90,32 +80,32 @@ data23_cleaned %>%
   summary()
 ```
 
-    ##    nomem_encr        cv23o_m1         cv23o_m2         cv23o_m3     
-    ##  Min.   :800001   Min.   :    -9   Min.   :    -9   Min.   :    -9  
-    ##  1st Qu.:824679   1st Qu.:202212   1st Qu.:202301   1st Qu.:202302  
-    ##  Median :849996   Median :202212   Median :202301   Median :202302  
-    ##  Mean   :850158   Mean   :191233   Mean   :189358   Mean   :187863  
-    ##  3rd Qu.:875777   3rd Qu.:202212   3rd Qu.:202301   3rd Qu.:202302  
-    ##  Max.   :899946   Max.   :202301   Max.   :202302   Max.   :202303  
-    ##                                                                     
-    ##     cv23o160        cv23o242          cv23o243         cv23o261    
-    ##  Min.   :-9.00   Min.   :-9.0000   Min.   : -9.00   Min.   :0.000  
-    ##  1st Qu.:35.00   1st Qu.: 1.0000   1st Qu.: 80.00   1st Qu.:0.000  
-    ##  Median :54.00   Median : 1.0000   Median :100.00   Median :0.000  
-    ##  Mean   :49.69   Mean   : 0.8258   Mean   : 81.03   Mean   :0.148  
-    ##  3rd Qu.:68.00   3rd Qu.: 2.0000   3rd Qu.:100.00   3rd Qu.:0.000  
-    ##  Max.   :96.00   Max.   : 2.0000   Max.   :100.00   Max.   :1.000  
-    ##                                    NA's   :525      NA's   :3453   
-    ##     cv23o262       cv23o101     
-    ##  Min.   :0.00   Min.   :-9.000  
-    ##  1st Qu.:0.00   1st Qu.: 3.000  
-    ##  Median :0.00   Median : 5.000  
-    ##  Mean   :0.03   Mean   : 3.474  
-    ##  3rd Qu.:0.00   3rd Qu.: 7.000  
-    ##  Max.   :1.00   Max.   :10.000  
-    ##  NA's   :3453   NA's   :421
+    ##    nomem_encr        cv23o_m3         cv23o160        cv23o243     
+    ##  Min.   :800001   Min.   :    -9   Min.   :-9.00   Min.   : -9.00  
+    ##  1st Qu.:824679   1st Qu.:202302   1st Qu.:35.00   1st Qu.: 80.00  
+    ##  Median :849996   Median :202302   Median :54.00   Median :100.00  
+    ##  Mean   :850158   Mean   :187863   Mean   :49.69   Mean   : 81.03  
+    ##  3rd Qu.:875777   3rd Qu.:202302   3rd Qu.:68.00   3rd Qu.:100.00  
+    ##  Max.   :899946   Max.   :202303   Max.   :96.00   Max.   :100.00  
+    ##                                                    NA's   :525     
+    ##     cv23o101     
+    ##  Min.   :-9.000  
+    ##  1st Qu.: 3.000  
+    ##  Median : 5.000  
+    ##  Mean   : 3.474  
+    ##  3rd Qu.: 7.000  
+    ##  Max.   :10.000  
+    ##  NA's   :421
 
-Below are the rows that will be dropped conditional of massing data for
+We notice some data entry points are erroneous: -9 min value for several
+variables. And there are missing values as well for propensity to vote
+and for political orientation (right-left).
+
+Since we cannot impute data from another source on propensity to vote or
+political orientation, we need to remve the rows where either one of
+these variables has missing data.
+
+Below are the rows that will be dropped conditional of missing data for
 either voting propensity or political orientation. A total of 545
 samples.
 
@@ -125,7 +115,7 @@ data23_cleaned %>%
   dim()
 ```
 
-    ## [1] 545  10
+    ## [1] 545   5
 
 Dropping the missing values.
 
@@ -146,7 +136,7 @@ data23_cleaned %>%
   dim()
 ```
 
-    ## [1] 753  10
+    ## [1] 753   5
 
 ``` r
 data23_cleaned <- data23_cleaned %>% 
@@ -193,7 +183,9 @@ data23_cleaned %>%
 
 ![](LISS-data_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
 
-Also check how our dependent and independent variables are distributed.
+Also check how our variables are distributed.
+
+Below is the distribution of political orientation.
 
 ``` r
 data23_cleaned %>% 
@@ -209,6 +201,8 @@ data23_cleaned %>%
     ## unknown parameters: `binwidth`, `bins`, and `pad`
 
 ![](LISS-data_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
+
+Propensity to vote is highly skewed, with many values around 100.
 
 ``` r
 bins=round(sqrt(nrow(data23_cleaned)))
@@ -234,6 +228,8 @@ data23_cleaned %>%
 ```
 
 ![](LISS-data_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+
+### Recoding political values
 
 Below we recode the political orientation data such that LEFT=0 for
 values from 0 to 5 (including), and RIGHT=1 for values from 6 to 10 –\>
@@ -268,10 +264,15 @@ data23_cleaned %>%
   geom_histogram(aes(y=after_stat(density)),
                  bins=bins, fill="cornflowerblue") +
   geom_density() +
-  facet_wrap(vars(right))
+  facet_wrap(vars(right))+
+  labs(title="Propensity to vote distribution by political orientation",
+       subtitle="0=left, 1=right",
+       caption="LISS 2023 panel data")
 ```
 
 ![](LISS-data_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+
+Descriptive statistics
 
 ``` r
 data23_cleaned %>% 
@@ -299,7 +300,8 @@ Right-leaning voters are slightly more moderate in political orientation
 have slightly higher propensity to vote and slightly lower variance in
 it.
 
-Quick check: How does political orientation vary by age?
+Quick check on one covariate: How does political orientation vary by
+age?
 
 ``` r
 data23_cleaned %>% 
@@ -314,6 +316,25 @@ data23_cleaned %>%
 ```
 
 ![](LISS-data_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+
+And descriptive statistics: we have similar mean, median age and
+standards deviation of age across the two groups: left and right-leaning
+individuals.
+
+``` r
+data23_cleaned %>% 
+  group_by(right) %>% 
+  dplyr:: summarise(mean_age = mean(age),
+            median_age=median(age),
+            sd_age=sd(age)) %>% 
+  t()
+```
+
+    ##            [,1]       [,2]      
+    ## right      "0"        "1"       
+    ## mean_age   "55.27708" "55.16023"
+    ## median_age "59"       "57"      
+    ## sd_age     "17.62323" "17.59752"
 
 ### Reading and transforming 2022 data below
 
@@ -369,7 +390,7 @@ data22_cleaned %>%
        caption="LISS2022 panel data")
 ```
 
-![](LISS-data_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
+![](LISS-data_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
 
 ``` r
 data22_cleaned %>% 
@@ -398,13 +419,28 @@ data22_cleaned %>%
   geom_boxplot(fill="cornflowerblue")+
   coord_flip()+
   geom_point(size=1, alpha=0.3)+
-  labs(title = "Boxplot age by political orientation in 2023",
+  labs(title = "Boxplot age by political orientation in 2022",
        subtitle = "1=right-leaning, 0=left-leaning",
        x="",
-       caption="LISS2023 panel data")
+       caption="LISS2022 panel data")
 ```
 
-![](LISS-data_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
+![](LISS-data_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
+
+``` r
+data22_cleaned %>% 
+  group_by(right) %>% 
+  dplyr:: summarise(mean_age = mean(age),
+            median_age=median(age),
+            sd_age=sd(age)) %>% 
+  t()
+```
+
+    ##            [,1]       [,2]      
+    ## right      "0"        "1"       
+    ## mean_age   "54.93527" "54.25209"
+    ## median_age "58"       "56"      
+    ## sd_age     "17.79857" "17.73071"
 
 ## Joining together 2022 and 2023 data
 
@@ -414,28 +450,11 @@ propensity to vote and political orientation. We obtain 3361 samples.
 
 ``` r
 data22_cleaned %>% 
-  left_join(data23_cleaned, by=c("nomem_encr"), suffix=c(".22", ".23")) %>% 
-  drop_na(propensity_to_vote.23, political_orientation.23) 
+  inner_join(data23_cleaned, by=c("nomem_encr"), suffix=c(".22", ".23")) %>% 
+  dim()
 ```
 
-    ## # A tibble: 3,361 × 11
-    ##    nomem_encr age.22 propensity_to_vote.22 political_orientatio…¹ survey_year.22
-    ##         <dbl>  <dbl>                 <dbl>                  <dbl>          <dbl>
-    ##  1     800009     66                   100                      2           2022
-    ##  2     800015     59                   100                      4           2022
-    ##  3     800161     51                   100                      4           2022
-    ##  4     800170     63                   100                      9           2022
-    ##  5     800186     82                    90                      6           2022
-    ##  6     800204     79                    70                      5           2022
-    ##  7     800216     63                   100                      6           2022
-    ##  8     800228     69                   100                      4           2022
-    ##  9     800360     69                   100                      7           2022
-    ## 10     800392     59                    90                      8           2022
-    ## # ℹ 3,351 more rows
-    ## # ℹ abbreviated name: ¹​political_orientation.22
-    ## # ℹ 6 more variables: right.22 <fct>, age.23 <dbl>,
-    ## #   propensity_to_vote.23 <dbl>, political_orientation.23 <dbl>,
-    ## #   survey_year.23 <dbl>, right.23 <fct>
+    ## [1] 3361   11
 
 How many respondents have changed their political orientation from 2022
 to 2023: 447.
@@ -444,27 +463,11 @@ to 2023: 447.
 data22_cleaned %>% 
   left_join(data23_cleaned, by=c("nomem_encr"), suffix=c(".22", ".23")) %>% 
   drop_na(propensity_to_vote.23, political_orientation.23) %>% 
-  filter(right.22!=right.23)
+  filter(right.22!=right.23) %>% 
+  dim()
 ```
 
-    ## # A tibble: 447 × 11
-    ##    nomem_encr age.22 propensity_to_vote.22 political_orientatio…¹ survey_year.22
-    ##         <dbl>  <dbl>                 <dbl>                  <dbl>          <dbl>
-    ##  1     800497     78                    95                      6           2022
-    ##  2     800900     26                   100                      5           2022
-    ##  3     801278     74                   100                      6           2022
-    ##  4     801452     27                    99                      6           2022
-    ##  5     801467     72                   100                      6           2022
-    ##  6     801556     88                   100                      7           2022
-    ##  7     801818     35                   100                      7           2022
-    ##  8     801876     53                   100                      5           2022
-    ##  9     802098     30                   100                      5           2022
-    ## 10     802281     57                    50                      5           2022
-    ## # ℹ 437 more rows
-    ## # ℹ abbreviated name: ¹​political_orientation.22
-    ## # ℹ 6 more variables: right.22 <fct>, age.23 <dbl>,
-    ## #   propensity_to_vote.23 <dbl>, political_orientation.23 <dbl>,
-    ## #   survey_year.23 <dbl>, right.23 <fct>
+    ## [1] 447  11
 
 228 swinged from left to right and 219 from right to left.
 
@@ -492,10 +495,17 @@ analysis. So we are left with 2914 respondents.
 
 ``` r
 data22_23 <- data22_cleaned %>% 
-  left_join(data23_cleaned, by=c("nomem_encr"), suffix=c(".22", ".23")) %>% 
-  drop_na(propensity_to_vote.23, political_orientation.23) %>% 
+  inner_join(data23_cleaned, by=c("nomem_encr"), suffix=c(".22", ".23")) %>% 
   filter(right.22==right.23)
 ```
+
+``` r
+dim(data22_23)
+```
+
+    ## [1] 2914   11
+
+Descriptive statistics for the joined data for 2 years only
 
 ``` r
 data22_23 %>% 
@@ -512,7 +522,7 @@ data22_23 %>%
     ## 1 0                     92.8            17.4              91.5            19.2
     ## 2 1                     93.1            16.8              91.8            18.2
 
-### Reading data and apply the same transformations to 2021, 2020, 2019 panels
+### Reading data and applying the same transformations to the 2019, 2020 and 2021 panels
 
 ``` r
 data21 <- read_dta("cv21m_EN_1.0p.dta")
@@ -577,11 +587,7 @@ library(plyr)
 
 ``` r
 panel_19_23 <- join_all(list(data19_cleaned, data20_cleaned, data21_cleaned, data22_23), 
-         by='nomem_encr', type='left') %>% 
-  drop_na(propensity_to_vote.23, political_orientation.23,
-          propensity_to_vote.22, political_orientation.22,
-          propensity_to_vote.21, political_orientation.21,
-          propensity_to_vote.20, political_orientation.20) 
+         by='nomem_encr', type='inner') 
 ```
 
 ``` r
@@ -618,8 +624,8 @@ panel_19_23 %>%
     ## 1           2023        0
     ## 2           2023        0
 
-We think that for propensity to vote the error comes from typing 999
-instead of 99 for the two samples above, so we make this replacement.
+We think that the error comes from typing 999 instead of 99 for the two
+samples above, so we make this replacement below.
 
 ``` r
 panel_19_23 <- panel_19_23 %>% 
@@ -627,11 +633,10 @@ panel_19_23 <- panel_19_23 %>%
 ```
 
 And now checking for 999 values in political orientation: there are 47
-observations for which this was encoded as 999. Given that they did not
-swing in following years. Not to loose any further data, for these 47
-people we will use the political orientation score reported in 2020. If
-over the following years they swinged from left to right, they will be
-dropped from the analysis.
+observations for which this was encoded as 999. Not to loose any further
+data, for these 47 people we will use the political orientation score
+reported in 2020. If over the following years they swing from left to
+right, they will be dropped from the analysis.
 
 ``` r
 panel_19_23 %>% 
@@ -668,6 +673,8 @@ panel_19_23 %>%
 ```
 
     ## [1] 1658   26
+
+Descriptive statistics for the panel data.
 
 ``` r
 panel_19_23 %>% 
@@ -724,10 +731,10 @@ panel_19_23 %>%
        caption="LISS Panel data 2019-2023: 1658 observations")
 ```
 
-![](LISS-data_files/figure-gfm/unnamed-chunk-44-1.png)<!-- -->
+![](LISS-data_files/figure-gfm/unnamed-chunk-47-1.png)<!-- -->
 
-In our panel 2019-2023, 792 respondents were left-leaning and 866 were
-right leaning.
+Frequency counts by control and treatment group: in our 2019-2023 panel,
+792 respondents were left-leaning and 866 were right-leaning.
 
 ``` r
 panel_19_23 %>% 
@@ -769,6 +776,8 @@ panel19_23_stacked <- panel_19_23 %>%
   mutate(right=as.factor(right))
 ```
 
+And checking distributions.
+
 ``` r
 panel19_23_stacked %>% 
   ggplot(aes(x=right, y=propensity_to_vote))+
@@ -781,7 +790,9 @@ panel19_23_stacked %>%
        caption="LISS2019-2023 panel data")
 ```
 
-![](LISS-data_files/figure-gfm/unnamed-chunk-47-1.png)<!-- -->
+![](LISS-data_files/figure-gfm/unnamed-chunk-50-1.png)<!-- -->
+
+And descriptive statistics
 
 ``` r
 panel19_23_stacked %>% 
@@ -803,3 +814,64 @@ panel19_23_stacked %>%
     ## mean_propensity_to_vote      "94.03395"  "93.41515" 
     ## median_propensity_to_vote    "100"       "100"      
     ## sd_propensity_to_vote        "15.37547"  "15.67016"
+
+And by age: left-leaning voters are a bit older.
+
+``` r
+panel19_23_stacked %>% 
+  group_by(right) %>% 
+  dplyr:: summarise(mean_age = mean(age),
+            median_age=median(age),
+            sd_age=sd(age)) %>% 
+  t()
+```
+
+    ##            [,1]       [,2]      
+    ## right      "0"        "1"       
+    ## mean_age   "58.35935" "56.79040"
+    ## median_age "62"       "58"      
+    ## sd_age     "15.24085" "16.43357"
+
+``` r
+panel19_23_stacked %>% 
+  group_by(right, survey_year) %>% 
+  dplyr:: summarise(mean_age = mean(age),
+            median_age=median(age),
+            sd_age=sd(age)) %>% 
+  t()
+```
+
+    ## `summarise()` has grouped output by 'right'. You can override using the
+    ## `.groups` argument.
+
+    ##             [,1]       [,2]       [,3]       [,4]       [,5]       [,6]      
+    ## right       "0"        "0"        "0"        "0"        "0"        "1"       
+    ## survey_year "2019"     "2020"     "2021"     "2022"     "2023"     "2019"    
+    ## mean_age    "56.26790" "57.41224" "58.34296" "59.35566" "60.41801" "54.72096"
+    ## median_age  "60"       "61"       "62"       "63"       "64"       "56"      
+    ## sd_age      "15.18479" "15.17253" "15.18225" "15.17948" "15.17485" "16.39406"
+    ##             [,7]       [,8]       [,9]       [,10]     
+    ## right       "1"        "1"        "1"        "1"       
+    ## survey_year "2020"     "2021"     "2022"     "2023"    
+    ## mean_age    "55.84217" "56.79040" "57.79798" "58.80051"
+    ## median_age  "57"       "58"       "59"       "60"      
+    ## sd_age      "16.39421" "16.39791" "16.39369" "16.31704"
+
+We have no missing data in our 2019-2023 panel.
+
+``` r
+panel_19_23 %>% 
+  vis_miss()
+```
+
+![](LISS-data_files/figure-gfm/unnamed-chunk-54-1.png)<!-- -->
+
+I’ll export the datasets to a csv file for the matching analysis.
+
+``` r
+#write.csv(panel_19_23, "panel_19_23.csv")
+```
+
+``` r
+#write.csv(panel19_23_stacked, "panel19_23_stacked.csv")
+```
