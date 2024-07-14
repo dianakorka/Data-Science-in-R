@@ -234,7 +234,8 @@ Descriptive statistics
 ```{r}
 data23_cleaned %>% 
   group_by(right) %>% 
-  dplyr:: summarise(mean_political_orientation = mean(political_orientation),
+  dplyr:: summarise(counts=n(),
+            mean_political_orientation = mean(political_orientation),
             median_political_orientation=median(political_orientation),
             sd_political_orientation=sd(political_orientation),
             mean_propensity_to_vote= mean(propensity_to_vote),
@@ -659,7 +660,8 @@ And descriptive statistics
 ```{r}
 panel19_23_stacked %>% 
   group_by(right) %>% 
-  dplyr:: summarise(mean_political_orientation = mean(political_orientation),
+  dplyr:: summarise(counts=n(),
+            mean_political_orientation = mean(political_orientation),
             median_political_orientation=median(political_orientation),
             sd_political_orientation=sd(political_orientation),
             mean_propensity_to_vote= mean(propensity_to_vote),
