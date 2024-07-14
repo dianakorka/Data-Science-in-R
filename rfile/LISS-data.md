@@ -870,6 +870,94 @@ panel_19_23 %>%
 
 ![](LISS-data_files/figure-gfm/unnamed-chunk-54-1.png)<!-- -->
 
+Try to create age groups and see the distribution by political
+orientation.
+
+``` r
+panel19_23_stacked %>% 
+  mutate(age_group =case_when(age<25 ~ "18-24",
+                              age<35 ~ "25-34",
+                              age<45 ~ "35-44",
+                              age<55 ~"45-54",
+                              age<65 ~"55-64",
+                              TRUE ~"65 and over")) %>% 
+  group_by(age_group, right, survey_year) %>% 
+  dplyr::summarise(count=n(),
+                   mean_prop_vote=mean(propensity_to_vote),
+                   median_prop_vote=median(propensity_to_vote))
+```
+
+    ## `summarise()` has grouped output by 'age_group', 'right'. You can override
+    ## using the `.groups` argument.
+
+    ## # A tibble: 60 × 6
+    ## # Groups:   age_group, right [12]
+    ##    age_group right survey_year count mean_prop_vote median_prop_vote
+    ##    <chr>     <fct> <dbl+lbl>   <int>          <dbl>            <dbl>
+    ##  1 18-24     0     2019           38           86.4             99.5
+    ##  2 18-24     0     2020           32           90.2             99  
+    ##  3 18-24     0     2021           23           90.3             99  
+    ##  4 18-24     0     2022           19           93.6            100  
+    ##  5 18-24     0     2023           12           87.2             98.5
+    ##  6 18-24     1     2019           30           89.3            100  
+    ##  7 18-24     1     2020           25           90.4            100  
+    ##  8 18-24     1     2021           20           93.9             99  
+    ##  9 18-24     1     2022           19           87.7             99  
+    ## 10 18-24     1     2023           16           88.2             92.5
+    ## # ℹ 50 more rows
+
+We notice that the standard age groups of younger people are less well
+represented in our panel.
+
+``` r
+panel19_23_stacked %>% 
+  mutate(survey_year=as.factor(survey_year)) %>% 
+  mutate(age_group =case_when(age<25 ~ "18-24",
+                              age<35 ~ "25-34",
+                              age<45 ~ "35-44",
+                              age<55 ~"45-54",
+                              age<65 ~"55-64",
+                              TRUE ~"65 and over")) %>% 
+  group_by(age_group, right) %>% 
+  dplyr::summarise(count=n(),
+                   mean_prop_vote=mean(propensity_to_vote),
+                   median_prop_vote=median(propensity_to_vote)) %>% 
+  ggplot(aes(x=age_group, y=count)) +
+  geom_col() +
+  labs(title="Stacked panel data 2019-2023 distribution by standard age groups")
+```
+
+    ## `summarise()` has grouped output by 'age_group'. You can override using the
+    ## `.groups` argument.
+
+![](LISS-data_files/figure-gfm/unnamed-chunk-56-1.png)<!-- -->
+
+So we will regroup data into 3 segments that are more equally
+represented across the panel.
+
+``` r
+panel19_23_stacked %>% 
+  mutate(survey_year=as.factor(survey_year)) %>% 
+  mutate(age_group =case_when(age<45 ~ "18-44",
+                              age<65 ~"45-64",
+                              TRUE ~"65 and over")) %>% 
+  group_by(age_group, right, survey_year) %>% 
+  dplyr::summarise(count=n(),
+                   mean_prop_vote=mean(propensity_to_vote),
+                   median_prop_vote=median(propensity_to_vote)) %>% 
+  ggplot(aes(x=age_group, y=count, fill=right)) +
+  geom_col()+
+  facet_wrap(vars(survey_year)) +
+  labs(title="Distribution of age groups over time",
+       subtitle="counts of individuals from the 2019-2023 panel",
+       caption="LISS balanced panel data 2019-2023: 1658 individuals in total")
+```
+
+    ## `summarise()` has grouped output by 'age_group', 'right'. You can override
+    ## using the `.groups` argument.
+
+![](LISS-data_files/figure-gfm/unnamed-chunk-57-1.png)<!-- -->
+
 I’ll export the datasets to a csv file for the matching analysis.
 
 ``` r
