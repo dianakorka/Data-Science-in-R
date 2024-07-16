@@ -74,12 +74,26 @@ panel19_23_stacked %>%
 ```
 
 
+```{r}
+panel19_23_stacked %>% 
+  mutate(right=as.factor(right)) %>% 
+  ggplot(aes(x=propensity_to_vote, y=right, color=right)) +
+  geom_point()+
+  geom_boxplot() +
+  coord_flip() +
+  facet_wrap(vars(survey_year)) +
+  labs(title="Distribution of propensity to vote by political orientation",
+       x="propensity to vote (0 to 100)",
+       y="")
+```
+
+
 ## TSLS with IV=time of the Russia-Ukraine war for the left-leaning group
 
 Now we estimate the first stage of our dif-in-dif model
 
 ```{r}
-dd_reg <- felm(political_orientation ~ treatment_z | survey_year + nomem_encr, data=panel19_23_stacked)
+dd_reg <- felm(political_orientation ~ treatment_z | survey_year + right, data=panel19_23_stacked)
 
 summary(dd_reg)
 ```
@@ -131,7 +145,7 @@ For the second stage, we regress the outcome (propensity to vote) on the predict
 
 
 ```{r}
-dd_reg_2 <- felm(propensity_to_vote ~ pred_political_orientation | survey_year + nomem_encr, data=panel19_23_stacked)
+dd_reg_2 <- felm(propensity_to_vote ~ pred_political_orientation | survey_year + right, data=panel19_23_stacked)
 
 summary(dd_reg_2)
 ```
@@ -197,7 +211,7 @@ Simple TSLS with fixed effects
 
 ```{r}
 feols(
-  propensity_to_vote ~ 1 | survey_year + nomem_encr | political_orientation ~ treatment_z, 
+  propensity_to_vote ~ 1 | survey_year + right | political_orientation ~ treatment_z, 
   data = panel19_23_stacked,
   vcov = "hc1"
 )
