@@ -95,9 +95,9 @@ panel19_23_stacked %>%
 
 ``` r
 panel19_23_stacked %>% 
-  group_by(right, survey_year) %>% 
-  summarise(mean_prop_to_vote= (mean(propensity_to_vote))) %>% 
-  mutate(right=as.factor(right)) %>% 
+  dplyr:: group_by(right, survey_year) %>% 
+  dplyr:: summarise(mean_prop_to_vote= (mean(propensity_to_vote))) %>% 
+  dplyr:: mutate(right=as.factor(right)) %>% 
   ggplot(aes(x=survey_year, y=mean_prop_to_vote, color=right))+
   geom_point()+
   geom_line()+
@@ -226,17 +226,17 @@ summary(dd_reg_2)
     ## 
     ## Residuals:
     ##     Min      1Q  Median      3Q     Max 
-    ## -76.035  -0.673   0.180   1.180  55.821 
+    ## -76.035  -0.673   0.165   1.180  55.821 
     ## 
     ## Coefficients:
     ##                            Estimate Std. Error t value Pr(>|t|)
-    ## pred_political_orientation  -0.9824     3.2642  -0.301    0.763
+    ## pred_political_orientation  -0.9874     3.2642  -0.303    0.762
     ## 
     ## Residual standard error: 11.07 on 6627 degrees of freedom
     ## Multiple R-squared(full model): 0.5934   Adjusted R-squared: 0.4914 
-    ## Multiple R-squared(proj model): 1.367e-05   Adjusted R-squared: -0.2508 
+    ## Multiple R-squared(proj model): 1.381e-05   Adjusted R-squared: -0.2508 
     ## F-statistic(full model):5.818 on 1662 and 6627 DF, p-value: < 2.2e-16 
-    ## F-statistic(proj model): 0.09057 on 1 and 6627 DF, p-value: 0.7635
+    ## F-statistic(proj model): 0.09151 on 1 and 6627 DF, p-value: 0.7623
 
 Our LATE estimand is highly insignificant. We store the estimated values
 and confidence intervals.
@@ -251,7 +251,7 @@ LATE_CI_upper_boundary = abs(LATE + qnorm(0.975)*summary(dd_reg_2)$coefficients[
 c(LATE, LATE_CI_lower_boundary, LATE_CI_upper_boundary)
 ```
 
-    ## [1] -0.9823815  7.3800949  5.4153319
+    ## [1] -0.987440  7.385149  5.410269
 
 ## Standard OLS estimation
 
@@ -286,9 +286,9 @@ summary(ols_reg)
     ## OLS estimation, Dep. Var.: propensity_to_vote
     ## Observations: 8,290
     ## Standard-errors: Heteroskedasticity-robust 
-    ##                        Estimate Std. Error   t value  Pr(>|t|)    
-    ## (Intercept)           95.972292   0.437545 219.34293 < 2.2e-16 ***
-    ## political_orientation -0.356325   0.067875  -5.24973 1.561e-07 ***
+    ##                        Estimate Std. Error   t value   Pr(>|t|)    
+    ## (Intercept)           95.972762   0.437545 219.34363  < 2.2e-16 ***
+    ## political_orientation -0.356362   0.067875  -5.25027 1.5564e-07 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## RMSE: 15.5   Adj. R2: 0.002553
@@ -335,14 +335,14 @@ feols(
     ## Second stage: Dep. Var.: propensity_to_vote
     ## Observations: 8,290
     ## Standard-errors: Heteroskedasticity-robust 
-    ##                            Estimate Std. Error  t value  Pr(>|t|)    
-    ## (Intercept)               94.007773   1.179338 79.71231 < 2.2e-16 ***
-    ## fit_political_orientation -0.042973   0.185301 -0.23191   0.81661    
+    ##                            Estimate Std. Error   t value  Pr(>|t|)    
+    ## (Intercept)               94.007187   1.179341 79.711640 < 2.2e-16 ***
+    ## fit_political_orientation -0.042841   0.185301 -0.231197   0.81717    
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## RMSE: 15.5   Adj. R2: 4.852e-4
+    ## RMSE: 15.5   Adj. R2: 4.836e-4
     ## F-test (1st stage), political_orientation: stat = 1,750.2    , p < 2.2e-16 , on 1 and 8,288 DoF.
-    ##                                Wu-Hausman: stat =     3.62861, p = 0.056829, on 1 and 8,287 DoF.
+    ##                                Wu-Hausman: stat =     3.63248, p = 0.056697, on 1 and 8,287 DoF.
 
 TSLS with fixed effects. Here we obtain the exact same results as above
 when implementing TSLS in two stages.
@@ -362,14 +362,14 @@ feols(
     ## Observations: 8,290
     ## Fixed-effects: survey_year: 5,  nomem_encr: 1,658
     ## Standard-errors: Heteroskedasticity-robust 
-    ##                            Estimate Std. Error   t value Pr(>|t|) 
-    ## fit_political_orientation -0.982382    3.32012 -0.295888  0.76733 
+    ##                           Estimate Std. Error   t value Pr(>|t|) 
+    ## fit_political_orientation -0.98744    3.32016 -0.297408  0.76616 
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## RMSE: 9.90725     Adj. R2:  0.490186
-    ##                 Within R2: -0.002315
-    ## F-test (1st stage), political_orientation: stat = 32.6     , p = 1.196e-8, on 1 and 6,627 DoF.
-    ##                                Wu-Hausman: stat =  0.076082, p = 0.782687, on 1 and 6,626 DoF.
+    ## RMSE: 9.90739     Adj. R2:  0.490177
+    ##                 Within R2: -0.002345
+    ## F-test (1st stage), political_orientation: stat = 32.6    , p = 1.196e-8, on 1 and 6,627 DoF.
+    ##                                Wu-Hausman: stat =  0.07705, p = 0.781345, on 1 and 6,626 DoF.
 
 And a Hasman test, which is highly significant, so we shoould not use
 OLS results.
@@ -410,14 +410,14 @@ feols(
     ## Observations: 8,290
     ## Fixed-effects: survey_year: 5,  nomem_encr: 1,658
     ## Standard-errors: Heteroskedasticity-robust 
-    ##                           Estimate Std. Error  t value Pr(>|t|) 
-    ## fit_political_orientation -1.67845    3.05962 -0.54858  0.58331 
+    ##                           Estimate Std. Error   t value Pr(>|t|) 
+    ## fit_political_orientation -1.68129    3.05966 -0.549503  0.58268 
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## RMSE: 9.93204     Adj. R2:  0.487631
-    ##                 Within R2: -0.007338
+    ## RMSE: 9.93219     Adj. R2:  0.487621
+    ##                 Within R2: -0.007371
     ## F-test (1st stage), political_orientation: stat = 38.7     , p = 5.15e-10, on 1 and 6,627 DoF.
-    ##                                Wu-Hausman: stat =  0.285018, p = 0.593449, on 1 and 6,626 DoF.
+    ##                                Wu-Hausman: stat =  0.286263, p = 0.592643, on 1 and 6,626 DoF.
 
 The coefficient estimate increases and the p-value improves, but the
 conclusion does not change. We cannot reject the null hypothesis that

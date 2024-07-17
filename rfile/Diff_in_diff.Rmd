@@ -70,9 +70,9 @@ panel19_23_stacked %>%
 
 ```{r}
 panel19_23_stacked %>% 
-  group_by(right, survey_year) %>% 
-  summarise(mean_prop_to_vote= (mean(propensity_to_vote))) %>% 
-  mutate(right=as.factor(right)) %>% 
+  dplyr:: group_by(right, survey_year) %>% 
+  dplyr:: summarise(mean_prop_to_vote= (mean(propensity_to_vote))) %>% 
+  dplyr:: mutate(right=as.factor(right)) %>% 
   ggplot(aes(x=survey_year, y=mean_prop_to_vote, color=right))+
   geom_point()+
   geom_line()+

@@ -1,5 +1,6 @@
 LISS data, LISS Core Study, the Politics and Values Section
 ================
+Diana Korka
 
 # Code for preparing LISS panel data for an analysis of propensity to vote and political views
 
@@ -320,7 +321,7 @@ data23_cleaned %>%
 ![](LISS-data_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
 
 And descriptive statistics: we have similar mean, median age and
-standards deviation of age across the two groups: left and right-leaning
+standard deviation of age across the two groups: left and right-leaning
 individuals.
 
 ``` r
@@ -626,12 +627,12 @@ panel_19_23 %>%
     ## 1           2023        0
     ## 2           2023        0
 
-We think that the error comes from typing 999 instead of 99 for the two
-samples above, so we make this replacement below.
+We see that for these people political orientation was 100 over all the
+following 4 years, so we use the 2020 value.
 
 ``` r
 panel_19_23 <- panel_19_23 %>% 
-  mutate(propensity_to_vote.19=if_else(propensity_to_vote.19==999, true=99, false=propensity_to_vote.19)) 
+  mutate(propensity_to_vote.19=if_else(propensity_to_vote.19==999, true=propensity_to_vote.20, false=propensity_to_vote.19)) 
 ```
 
 And now checking for 999 values in political orientation: there are 47
@@ -815,9 +816,9 @@ panel19_23_stacked %>%
     ## mean_political_orientation   "3.386143"  "7.328535" 
     ## median_political_orientation "3"         "7"        
     ## sd_political_orientation     "1.2040941" "0.9537916"
-    ## mean_propensity_to_vote      "94.03395"  "93.41515" 
+    ## mean_propensity_to_vote      "94.03441"  "93.41515" 
     ## median_propensity_to_vote    "100"       "100"      
-    ## sd_propensity_to_vote        "15.37547"  "15.67016"
+    ## sd_propensity_to_vote        "15.37564"  "15.67016"
 
 And by age: left-leaning voters are a bit older.
 
@@ -958,7 +959,227 @@ panel19_23_stacked %>%
 
 ![](LISS-data_files/figure-gfm/unnamed-chunk-57-1.png)<!-- -->
 
-I’ll export the datasets to a csv file for the matching analysis.
+## Panel dataset that includes voters who swinged from left to right
+
+We previously excluded from our panel any voter who swinged right-left
+or vice-versa at any point over the 5 years.
+
+Now we are interested to keep any voters who swinged from left to right.
+But still remove the ones who swinged from right to left.
+
+This is what we do with the code below. First we join together the 5
+years such that we keep a balanced dataset (only individual present in
+the data for all 5 years are kept).
+
+``` r
+# fixing some column names
+data22_cleaned <- data22_cleaned %>% 
+  dplyr:: rename(age.22=age, 
+         propensity_to_vote.22=propensity_to_vote, 
+         political_orientation.22=political_orientation, 
+         survey_year.22=survey_year, 
+         right.22=right)
+
+data23_cleaned <- data23_cleaned %>% 
+  dplyr:: rename(age.23=age, 
+         propensity_to_vote.23=propensity_to_vote, 
+         political_orientation.23=political_orientation, 
+         survey_year.23=survey_year, 
+         right.23=right)
+```
+
+``` r
+library(plyr)
+
+panel_swing_19_23 <- join_all(list(data19_cleaned, data20_cleaned, data21_cleaned, data22_cleaned, data23_cleaned), 
+         by='nomem_encr', type='inner') 
+
+nrow(panel_swing_19_23)
+```
+
+    ## [1] 2372
+
+We know we need to correct some 2019 values encoded as “999” for both
+propensity to vote and political orientation.
+
+``` r
+panel_swing_19_23 <- panel_swing_19_23 %>% 
+  mutate(propensity_to_vote.19= if_else(propensity_to_vote.19==999, true=propensity_to_vote.20, false=propensity_to_vote.19) ) # in 2019 prop to vote encoded at 999, use 2020 value (2 voters), they both had 100 prop to vote over the next 4 years
+```
+
+``` r
+panel_swing_19_23 <- panel_swing_19_23 %>% 
+  mutate(political_orientation.19= if_else(political_orientation.19==999, true=political_orientation.20, false=political_orientation.19) ) %>% # if 2019 pol_orient encoded 999, use 2020 value
+  mutate(right.19=case_when(political_orientation.19<=5 ~ 0, TRUE ~ 1)) %>% # recalculate right dummy
+  mutate(right.19=as.factor(right.19)) # set it as a factor
+```
+
+Voters in our panel who did not swing at all over the entire period:
+1658
+
+``` r
+panel_swing_19_23 %>% 
+  filter(right.23==right.22) %>% 
+  filter(right.22==right.21) %>% 
+  filter(right.21==right.20) %>% 
+  filter(right.20==right.19) %>% 
+  dim()
+```
+
+    ## [1] 1658   26
+
+Voters who swang from left (0) to right (1) over the entire period: 566
+
+``` r
+panel_swing_19_23 %>% 
+  filter((right.19==0 & right.20==1) | (right.20==0 & right.21==1) | (right.21==0 & right.22==1) | (right.22==0 & right.23==1)) %>% 
+  dim()
+```
+
+    ## [1] 566  26
+
+We can also check that among those who swang left to right, nobody
+retraced steps back to left.
+
+``` r
+panel_swing_19_23 %>% 
+  filter((right.19==0 & right.20==1) | (right.20==0 & right.21==1) | (right.21==0 & right.22==1) | (right.22==0 & right.23==1)) %>% 
+  filter(! (right.19==1 & right.20==0) | ! (right.20==1 & right.21==0) | ! (right.21==1 & right.22==0) | ! (right.22==1 & right.23==0)) %>% 
+  dim()
+```
+
+    ## [1] 566  26
+
+Voters who swang from right to left over the entire period: 563
+
+``` r
+panel_swing_19_23 %>% 
+  filter((right.19==1 & right.20==0) | (right.20==1 & right.21==0) | (right.21==1 & right.22==0) | (right.22==1 & right.23==0)) %>% 
+  dim()
+```
+
+    ## [1] 563  26
+
+Building a balanced panel in which we keep only people who swang from
+left to right: 1658 who did not swing + 566 who swang left to right =
+2224
+
+``` r
+dplyr:: bind_rows(panel_swing_19_23 %>% 
+  filter((right.19==0 & right.20==1) | 
+           (right.20==0 & right.21==1) | 
+           (right.21==0 & right.22==1) | 
+           (right.22==0 & right.23==1)), # swingers left to right
+  panel_swing_19_23 %>% 
+  filter(right.23==right.22) %>% 
+  filter(right.22==right.21) %>% 
+  filter(right.21==right.20) %>% 
+  filter(right.20==right.19) # non-swingers
+  ) %>% 
+  dim()
+```
+
+    ## [1] 2224   26
+
+``` r
+panel_swing_19_23 <- dplyr:: bind_rows(panel_swing_19_23 %>% 
+  filter((right.19==0 & right.20==1) | 
+           (right.20==0 & right.21==1) | 
+           (right.21==0 & right.22==1) | 
+           (right.22==0 & right.23==1)), # swingers left to right
+  panel_swing_19_23 %>% 
+  filter(right.23==right.22) %>% 
+  filter(right.22==right.21) %>% 
+  filter(right.21==right.20) %>% 
+  filter(right.20==right.19) # non-swingers
+  )
+```
+
+Turn the data into a stacked tibble.
+
+``` r
+panel_swing_stacked_19_23 <- panel_swing_19_23 %>% 
+  mutate(right.19=as.numeric(right.19),
+         right.20=as.numeric(right.20),
+         right.21=as.numeric(right.21),
+         right.22=as.numeric(right.22),
+         right.23=as.numeric(right.23))%>% 
+  pivot_longer(col=c(-nomem_encr), names_to="metrics", values_to = "values") %>% 
+  mutate(year=str_sub(metrics, start=-2),
+         metrics=str_remove(metrics, ".\\d\\d")) %>% 
+  pivot_wider(names_from = metrics, values_from = values) %>% 
+  select(-year) %>% 
+  mutate(right=if_else(right==1, true=0, false=1)) %>% 
+  mutate(right=as.factor(right))
+```
+
+Just checking some descriptive stats for the new panel:
+
+``` r
+panel_swing_stacked_19_23 %>% 
+  group_by(right, survey_year) %>% 
+  dplyr:: summarise(counts=n(),
+            mean_political_orientation = mean(political_orientation),
+            median_political_orientation=median(political_orientation),
+            sd_political_orientation=sd(political_orientation),
+            mean_propensity_to_vote= mean(propensity_to_vote),
+            median_propensity_to_vote= median(propensity_to_vote),
+            sd_propensity_to_vote=sd(propensity_to_vote)) %>% 
+  t()
+```
+
+    ## `summarise()` has grouped output by 'right'. You can override using the
+    ## `.groups` argument.
+
+    ##                              [,1]        [,2]        [,3]        [,4]       
+    ## right                        "0"         "0"         "0"         "0"        
+    ## survey_year                  "2019"      "2020"      "2021"      "2022"     
+    ## counts                       "1215"      "1185"      "1127"      "1136"     
+    ## mean_political_orientation   "3.564609"  "3.635443"  "3.647737"  "3.623239" 
+    ## median_political_orientation "4"         "4"         "4"         "4"        
+    ## sd_political_orientation     "1.2545398" "1.2528722" "1.2094770" "1.2147212"
+    ## mean_propensity_to_vote      "93.08230"  "92.66920"  "93.52795"  "93.60387" 
+    ## median_propensity_to_vote    "100"       "100"       "100"       "100"      
+    ## sd_propensity_to_vote        "16.49107"  "16.72230"  "15.87123"  "15.96030" 
+    ##                              [,5]        [,6]        [,7]        [,8]       
+    ## right                        "0"         "1"         "1"         "1"        
+    ## survey_year                  "2023"      "2019"      "2020"      "2021"     
+    ## counts                       "1087"      "1009"      "1039"      "1097"     
+    ## mean_political_orientation   "3.678013"  "7.156591"  "7.209817"  "7.134913" 
+    ## median_political_orientation "4"         "7"         "7"         "7"        
+    ## sd_political_orientation     "1.1694801" "0.9570430" "1.0425716" "0.9815975"
+    ## mean_propensity_to_vote      "92.78749"  "92.52825"  "92.63811"  "93.35552" 
+    ## median_propensity_to_vote    "100"       "100"       "100"       "100"      
+    ## sd_propensity_to_vote        "17.06196"  "17.14971"  "16.92588"  "15.15159" 
+    ##                              [,9]        [,10]      
+    ## right                        "1"         "1"        
+    ## survey_year                  "2022"      "2023"     
+    ## counts                       "1088"      "1137"     
+    ## mean_political_orientation   "7.118566"  "7.087071" 
+    ## median_political_orientation "7"         "7"        
+    ## sd_political_orientation     "0.9561234" "0.9624920"
+    ## mean_propensity_to_vote      "92.76011"  "92.68426" 
+    ## median_propensity_to_vote    "100"       "100"      
+    ## sd_propensity_to_vote        "16.88678"  "16.66994"
+
+Showing panel is balanced.
+
+``` r
+panel_swing_stacked_19_23 %>% 
+  group_by(survey_year) %>% 
+  dplyr:: summarise(counts=n())
+```
+
+    ## # A tibble: 5 × 2
+    ##   survey_year counts
+    ##   <dbl+lbl>    <int>
+    ## 1 2019          2224
+    ## 2 2020          2224
+    ## 3 2021          2224
+    ## 4 2022          2224
+    ## 5 2023          2224
+
+I’ll export the datasets to a csv file for the analysis.
 
 ``` r
 #write.csv(panel_19_23, "panel_19_23.csv")
@@ -966,4 +1187,8 @@ I’ll export the datasets to a csv file for the matching analysis.
 
 ``` r
 #write.csv(panel19_23_stacked, "panel19_23_stacked.csv")
+```
+
+``` r
+#write.csv(panel_swing_stacked_19_23, "panel_swing_stacked_19_23.csv")
 ```
