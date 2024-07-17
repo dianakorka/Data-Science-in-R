@@ -93,7 +93,7 @@ panel19_23_stacked %>%
 Now we estimate the first stage of our dif-in-dif model
 
 ```{r}
-dd_reg <- felm(political_orientation ~ treatment_z | survey_year + right, data=panel19_23_stacked)
+dd_reg <- felm(political_orientation ~ treatment_z | survey_year + nomem_encr, data=panel19_23_stacked)
 
 summary(dd_reg)
 ```
@@ -145,7 +145,7 @@ For the second stage, we regress the outcome (propensity to vote) on the predict
 
 
 ```{r}
-dd_reg_2 <- felm(propensity_to_vote ~ pred_political_orientation | survey_year + right, data=panel19_23_stacked)
+dd_reg_2 <- felm(propensity_to_vote ~ pred_political_orientation | survey_year + nomem_encr, data=panel19_23_stacked)
 
 summary(dd_reg_2)
 ```
@@ -176,7 +176,7 @@ Probably the relationship is endogenous, but just to be able to compare results.
 library(fixest)
 
 ols_reg <- feols(
-  propensity_to_vote ~ political_orientation + treatment_z + political_orientation*treatment_z, # Regression formula
+  propensity_to_vote ~ political_orientation, # Regression formula
   data=panel19_23_stacked,
   vcov = "hc1" #--variance-covariance ratio, hc=heterochedasticity-consistent
 )

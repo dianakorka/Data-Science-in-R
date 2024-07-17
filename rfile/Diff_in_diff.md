@@ -119,30 +119,30 @@ panel19_23_stacked %>%
 Now we estimate the first stage of our dif-in-dif model
 
 ``` r
-dd_reg <- felm(political_orientation ~ treatment_z | survey_year + right, data=panel19_23_stacked)
+dd_reg <- felm(political_orientation ~ treatment_z | survey_year + nomem_encr, data=panel19_23_stacked)
 
 summary(dd_reg)
 ```
 
     ## 
     ## Call:
-    ##    felm(formula = political_orientation ~ treatment_z | survey_year +      right, data = panel19_23_stacked) 
+    ##    felm(formula = political_orientation ~ treatment_z | survey_year +      nomem_encr, data = panel19_23_stacked) 
     ## 
     ## Residuals:
     ##     Min      1Q  Median      3Q     Max 
-    ## -2.4614 -0.4614 -0.3103  0.6865  2.7304 
+    ## -3.2435 -0.2752  0.0144  0.2759  2.8759 
     ## 
     ## Coefficients:
-    ##             Estimate Std. Error t value Pr(>|t|)   
-    ## treatment_z  0.15218    0.04897   3.108  0.00189 **
+    ##             Estimate Std. Error t value Pr(>|t|)    
+    ## treatment_z  0.15218    0.02666   5.708  1.2e-08 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
-    ## Residual standard error: 1.091 on 8283 degrees of freedom
-    ## Multiple R-squared(full model): 0.7654   Adjusted R-squared: 0.7652 
-    ## Multiple R-squared(proj model): 0.001165   Adjusted R-squared: 0.0004411 
-    ## F-statistic(full model): 4503 on 6 and 8283 DF, p-value: < 2.2e-16 
-    ## F-statistic(proj model): 9.658 on 1 and 8283 DF, p-value: 0.001892
+    ## Residual standard error: 0.5941 on 6627 degrees of freedom
+    ## Multiple R-squared(full model): 0.9443   Adjusted R-squared: 0.9304 
+    ## Multiple R-squared(proj model): 0.004892   Adjusted R-squared: -0.2447 
+    ## F-statistic(full model):67.66 on 1662 and 6627 DF, p-value: < 2.2e-16 
+    ## F-statistic(proj model): 32.58 on 1 and 6627 DF, p-value: 1.196e-08
 
 We can see that it seems that the treatment coefficient is highly
 significant. We’d have to run a parallel trends regression to see if the
@@ -164,7 +164,7 @@ ATT_1_CI_upper_boundary = abs(main_ATT_1 + qnorm(0.975)*summary(dd_reg)$coeffici
 c(main_ATT_1, ATT_1_CI_lower_boundary, ATT_1_CI_upper_boundary)
 ```
 
-    ## [1] 0.15218437 0.05620435 0.24816440
+    ## [1] 0.15218437 0.09992452 0.20444422
 
 For the second stage of our two-stage least-squares (TSLS) we need to
 store the predicted values of political orientation from the first stage
@@ -203,28 +203,28 @@ For the second stage, we regress the outcome (propensity to vote) on the
 predicted political orientation, with fixed effects.
 
 ``` r
-dd_reg_2 <- felm(propensity_to_vote ~ pred_political_orientation | survey_year + right, data=panel19_23_stacked)
+dd_reg_2 <- felm(propensity_to_vote ~ pred_political_orientation | survey_year + nomem_encr, data=panel19_23_stacked)
 
 summary(dd_reg_2)
 ```
 
     ## 
     ## Call:
-    ##    felm(formula = propensity_to_vote ~ pred_political_orientation |      survey_year + right, data = panel19_23_stacked) 
+    ##    felm(formula = propensity_to_vote ~ pred_political_orientation |      survey_year + nomem_encr, data = panel19_23_stacked) 
     ## 
     ## Residuals:
     ##     Min      1Q  Median      3Q     Max 
-    ## -93.767   4.233   6.020   6.550   6.875 
+    ## -76.035  -0.673   0.180   1.180  55.821 
     ## 
     ## Coefficients:
     ##                            Estimate Std. Error t value Pr(>|t|)
-    ## pred_political_orientation  -0.9824     4.5764  -0.215     0.83
+    ## pred_political_orientation  -0.9824     3.2642  -0.301    0.763
     ## 
-    ## Residual standard error: 15.52 on 8283 degrees of freedom
-    ## Multiple R-squared(full model): 0.0009614   Adjusted R-squared: 0.0002377 
-    ## Multiple R-squared(proj model): 5.563e-06   Adjusted R-squared: -0.0007188 
-    ## F-statistic(full model):1.329 on 6 and 8283 DF, p-value: 0.2404 
-    ## F-statistic(proj model): 0.04608 on 1 and 8283 DF, p-value: 0.83
+    ## Residual standard error: 11.07 on 6627 degrees of freedom
+    ## Multiple R-squared(full model): 0.5934   Adjusted R-squared: 0.4914 
+    ## Multiple R-squared(proj model): 1.367e-05   Adjusted R-squared: -0.2508 
+    ## F-statistic(full model):5.818 on 1662 and 6627 DF, p-value: < 2.2e-16 
+    ## F-statistic(proj model): 0.09057 on 1 and 6627 DF, p-value: 0.7635
 
 Our LATE estimand is highly insignificant. We store the estimated values
 and confidence intervals.
@@ -239,7 +239,7 @@ LATE_CI_upper_boundary = abs(LATE + qnorm(0.975)*summary(dd_reg_2)$coefficients[
 c(LATE, LATE_CI_lower_boundary, LATE_CI_upper_boundary)
 ```
 
-    ## [1] -0.9823815  9.9519679  7.9872049
+    ## [1] -0.9823815  7.3800949  5.4153319
 
 ## Standard OLS estimation
 
@@ -263,7 +263,7 @@ library(fixest)
 
 ``` r
 ols_reg <- feols(
-  propensity_to_vote ~ political_orientation + treatment_z + political_orientation*treatment_z, # Regression formula
+  propensity_to_vote ~ political_orientation, # Regression formula
   data=panel19_23_stacked,
   vcov = "hc1" #--variance-covariance ratio, hc=heterochedasticity-consistent
 )
@@ -274,14 +274,12 @@ summary(ols_reg)
     ## OLS estimation, Dep. Var.: propensity_to_vote
     ## Observations: 8,290
     ## Standard-errors: Heteroskedasticity-robust 
-    ##                                    Estimate Std. Error   t value   Pr(>|t|)    
-    ## (Intercept)                       95.372574   0.458465 208.02590  < 2.2e-16 ***
-    ## political_orientation             -0.287696   0.076375  -3.76688 1.6645e-04 ***
-    ## treatment_z                        6.064284   1.152067   5.26383 1.4462e-07 ***
-    ## political_orientation:treatment_z -1.927416   0.341316  -5.64701 1.6865e-08 ***
+    ##                        Estimate Std. Error   t value  Pr(>|t|)    
+    ## (Intercept)           95.615966   0.375839 254.40696 < 2.2e-16 ***
+    ## political_orientation -0.356325   0.067875  -5.24973 1.561e-07 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## RMSE: 15.5   Adj. R2: 0.00695
+    ## RMSE: 15.5   Adj. R2: 0.002553
 
 Here we obtain a negative and significant coefficient. Increasing
 political orientation by one unit (moving to the right) is associated
