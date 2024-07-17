@@ -44,11 +44,19 @@ panel19_23_stacked %>%
 
 ## Create treatment variable
 
-In our case, we need to create a treatment variable which takes value 1 when year=2022 or 2023 and the individual is left-leaning (i.e. right==0)
+In our case, we need to create a treatment variable - **treatment_z**- which takes value 1 when year=2022 or 2023 and the individual is left-leaning (i.e. right==0).
+
+Another possibility is that the effect of the crisis had not yet take center stage in 2022 at the time when the LISS data was collected (Dec 2021-Mar 2022), with the war commencing enf of Feb 2022. Thus another instrument we could try is treatment instrument **treatment_23** which takes value 1 when year=2023 (not 2022) and the individual is left-leaning.
+
+In addition, political orientation is encoded on a 0 to 10 scale. We rescale it to 1 to 11 (to avoid having zeros).
+
 
 ```{r}
+
 panel19_23_stacked <- panel19_23_stacked %>% 
-  mutate(treatment_z = if_else((right==0 & survey_year>=2022), true= 1, false=0))
+  mutate(treatment_z = if_else((right==0 & survey_year>=2022), true= 1, false=0)) %>% 
+  mutate(treatment_23 =if_else((right==0 & survey_year==2023), true= 1, false=0)) %>% 
+  mutate(political_orientation=political_orientation+1)
 ```
 
 
@@ -184,7 +192,7 @@ ols_reg <- feols(
 summary(ols_reg)
 ```
 
-Here we obtain a negative and significant coefficient. Increasing political orientation by one unit (moving to the right) is associated with 0.287 lower propensity to vote.
+Here we obtain a negative and significant coefficient. Increasing political orientation by one unit = moving to the right is associated with 0.356 lower propensity to vote.
 
 
 
@@ -207,11 +215,12 @@ feols(
 )
 ```
 
-Simple TSLS with fixed effects
+TSLS with fixed effects. Here we obtain the exact same results as above when implementing TSLS in two stages.
+
 
 ```{r}
 feols(
-  propensity_to_vote ~ 1 | survey_year + right | political_orientation ~ treatment_z, 
+  propensity_to_vote ~ 1 | survey_year + nomem_encr | political_orientation ~ treatment_z, 
   data = panel19_23_stacked,
   vcov = "hc1"
 )
@@ -225,5 +234,32 @@ library(ivDiag)
 
 eff_F(panel19_23_stacked, Y = "propensity_to_vote", D = "political_orientation", Z = "treatment_z")
 ```
+
+
+
+## Repeating TSLS for treatment_23 (if we assume the crisis is only apparent in the 2023 data)
+
+
+Another possibility is that the effect of the crisis had not yet take center stage in 2022 at the time when the LISS data was collected (Dec 2021-Mar 2022), with the war commencing enf of Feb 2022. Thus another instrument we could try is treatment instrument **treatment_23** which takes value 1 when year=2023 (not 2022) and the individual is left-leaning.
+
+
+```{r}
+feols(
+  propensity_to_vote ~ 1 | survey_year + nomem_encr | political_orientation ~ treatment_23, 
+  data = panel19_23_stacked,
+  vcov = "hc1"
+)
+```
+
+
+The coefficient estimate increases and the p-value improves, but the conclusion does not change. We cannot reject the null hypothesis that there is no difference in the impact the Ukraine-Russian was had on left-leaning as compared to right-leaning Dutch voters.
+
+And a Hausman test, which still is highly significant, so we should not use the OLS results, which are also reported below for completeness.
+
+
+```{r}
+eff_F(panel19_23_stacked, Y = "propensity_to_vote", D = "political_orientation", Z = "treatment_23")
+```
+
 
 

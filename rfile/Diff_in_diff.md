@@ -54,13 +54,25 @@ panel19_23_stacked %>%
 
 ## Create treatment variable
 
-In our case, we need to create a treatment variable which takes value 1
-when year=2022 or 2023 and the individual is left-leaning
-(i.e. right==0)
+In our case, we need to create a treatment variable - **treatment_z**-
+which takes value 1 when year=2022 or 2023 and the individual is
+left-leaning (i.e. right==0).
+
+Another possibility is that the effect of the crisis had not yet take
+center stage in 2022 at the time when the LISS data was collected (Dec
+2021-Mar 2022), with the war commencing enf of Feb 2022. Thus another
+instrument we could try is treatment instrument **treatment_23** which
+takes value 1 when year=2023 (not 2022) and the individual is
+left-leaning.
+
+In addition, political orientation is encoded on a 0 to 10 scale. We
+rescale it to 1 to 11 (to avoid having zeros).
 
 ``` r
 panel19_23_stacked <- panel19_23_stacked %>% 
-  mutate(treatment_z = if_else((right==0 & survey_year>=2022), true= 1, false=0))
+  mutate(treatment_z = if_else((right==0 & survey_year>=2022), true= 1, false=0)) %>% 
+  mutate(treatment_23 =if_else((right==0 & survey_year==2023), true= 1, false=0)) %>% 
+  mutate(political_orientation=political_orientation+1)
 ```
 
 ``` r
@@ -68,16 +80,16 @@ panel19_23_stacked %>%
   head()
 ```
 
-    ## # A tibble: 6 × 8
+    ## # A tibble: 6 × 9
     ##    ...1 nomem_encr   age propensity_to_vote political_orientation survey_year
     ##   <dbl>      <dbl> <dbl>              <dbl>                 <dbl>       <dbl>
-    ## 1     1     800009    63                 95                     1        2019
-    ## 2     2     800009    64                 95                     2        2020
-    ## 3     3     800009    65                100                     2        2021
-    ## 4     4     800009    66                100                     2        2022
-    ## 5     5     800009    67                 95                     2        2023
-    ## 6     6     800015    56                100                     3        2019
-    ## # ℹ 2 more variables: right <dbl>, treatment_z <dbl>
+    ## 1     1     800009    63                 95                     2        2019
+    ## 2     2     800009    64                 95                     3        2020
+    ## 3     3     800009    65                100                     3        2021
+    ## 4     4     800009    66                100                     3        2022
+    ## 5     5     800009    67                 95                     3        2023
+    ## 6     6     800015    56                100                     4        2019
+    ## # ℹ 3 more variables: right <dbl>, treatment_z <dbl>, treatment_23 <dbl>
 
 ## Plotting the data
 
@@ -275,15 +287,15 @@ summary(ols_reg)
     ## Observations: 8,290
     ## Standard-errors: Heteroskedasticity-robust 
     ##                        Estimate Std. Error   t value  Pr(>|t|)    
-    ## (Intercept)           95.615966   0.375839 254.40696 < 2.2e-16 ***
+    ## (Intercept)           95.972292   0.437545 219.34293 < 2.2e-16 ***
     ## political_orientation -0.356325   0.067875  -5.24973 1.561e-07 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## RMSE: 15.5   Adj. R2: 0.002553
 
 Here we obtain a negative and significant coefficient. Increasing
-political orientation by one unit (moving to the right) is associated
-with 0.287 lower propensity to vote.
+political orientation by one unit = moving to the right is associated
+with 0.356 lower propensity to vote.
 
 ``` r
 library(binsreg)
@@ -324,7 +336,7 @@ feols(
     ## Observations: 8,290
     ## Standard-errors: Heteroskedasticity-robust 
     ##                            Estimate Std. Error  t value  Pr(>|t|)    
-    ## (Intercept)               93.964800   0.996340 94.31000 < 2.2e-16 ***
+    ## (Intercept)               94.007773   1.179338 79.71231 < 2.2e-16 ***
     ## fit_political_orientation -0.042973   0.185301 -0.23191   0.81661    
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
@@ -332,11 +344,12 @@ feols(
     ## F-test (1st stage), political_orientation: stat = 1,750.2    , p < 2.2e-16 , on 1 and 8,288 DoF.
     ##                                Wu-Hausman: stat =     3.62861, p = 0.056829, on 1 and 8,287 DoF.
 
-Simple TSLS with fixed effects
+TSLS with fixed effects. Here we obtain the exact same results as above
+when implementing TSLS in two stages.
 
 ``` r
 feols(
-  propensity_to_vote ~ 1 | survey_year + right | political_orientation ~ treatment_z, 
+  propensity_to_vote ~ 1 | survey_year + nomem_encr | political_orientation ~ treatment_z, 
   data = panel19_23_stacked,
   vcov = "hc1"
 )
@@ -347,16 +360,16 @@ feols(
     ##                   Instr.   : treatment_z
     ## Second stage: Dep. Var.: propensity_to_vote
     ## Observations: 8,290
-    ## Fixed-effects: survey_year: 5,  right: 2
+    ## Fixed-effects: survey_year: 5,  nomem_encr: 1,658
     ## Standard-errors: Heteroskedasticity-robust 
     ##                            Estimate Std. Error   t value Pr(>|t|) 
-    ## fit_political_orientation -0.982382    4.61778 -0.212739  0.83154 
+    ## fit_political_orientation -0.982382    3.32012 -0.295888  0.76733 
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## RMSE: 15.5     Adj. R2: 0.005244
-    ##              Within R2: 0.005013
-    ## F-test (1st stage), political_orientation: stat = 9.65772 , p = 0.001892, on 1 and 8,283 DoF.
-    ##                                Wu-Hausman: stat = 2.838e-5, p = 0.995749, on 1 and 8,282 DoF.
+    ## RMSE: 9.90725     Adj. R2:  0.490186
+    ##                 Within R2: -0.002315
+    ## F-test (1st stage), political_orientation: stat = 32.6     , p = 1.196e-8, on 1 and 6,627 DoF.
+    ##                                Wu-Hausman: stat =  0.076082, p = 0.782687, on 1 and 6,626 DoF.
 
 And a Hasman test, which is highly significant, so we shoould not use
 OLS results.
@@ -372,3 +385,50 @@ eff_F(panel19_23_stacked, Y = "propensity_to_vote", D = "political_orientation",
 ```
 
     ## [1] 3428.807
+
+## Repeating TSLS for treatment_23 (if we assume the crisis is only apparent in the 2023 data)
+
+Another possibility is that the effect of the crisis had not yet take
+center stage in 2022 at the time when the LISS data was collected (Dec
+2021-Mar 2022), with the war commencing enf of Feb 2022. Thus another
+instrument we could try is treatment instrument **treatment_23** which
+takes value 1 when year=2023 (not 2022) and the individual is
+left-leaning.
+
+``` r
+feols(
+  propensity_to_vote ~ 1 | survey_year + nomem_encr | political_orientation ~ treatment_23, 
+  data = panel19_23_stacked,
+  vcov = "hc1"
+)
+```
+
+    ## TSLS estimation - Dep. Var.: propensity_to_vote
+    ##                   Endo.    : political_orientation
+    ##                   Instr.   : treatment_23
+    ## Second stage: Dep. Var.: propensity_to_vote
+    ## Observations: 8,290
+    ## Fixed-effects: survey_year: 5,  nomem_encr: 1,658
+    ## Standard-errors: Heteroskedasticity-robust 
+    ##                           Estimate Std. Error  t value Pr(>|t|) 
+    ## fit_political_orientation -1.67845    3.05962 -0.54858  0.58331 
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## RMSE: 9.93204     Adj. R2:  0.487631
+    ##                 Within R2: -0.007338
+    ## F-test (1st stage), political_orientation: stat = 38.7     , p = 5.15e-10, on 1 and 6,627 DoF.
+    ##                                Wu-Hausman: stat =  0.285018, p = 0.593449, on 1 and 6,626 DoF.
+
+The coefficient estimate increases and the p-value improves, but the
+conclusion does not change. We cannot reject the null hypothesis that
+there is no difference in the impact the Ukraine-Russian was had on
+left-leaning as compared to right-leaning Dutch voters.
+
+And a Hausman test, which still is highly significant, so we should not
+use the OLS results, which are also reported below for completeness.
+
+``` r
+eff_F(panel19_23_stacked, Y = "propensity_to_vote", D = "political_orientation", Z = "treatment_23")
+```
+
+    ## [1] 1744.044
