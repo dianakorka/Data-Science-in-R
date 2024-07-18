@@ -21,6 +21,7 @@ library(haven)
 library(lfe)
 library(panelView)
 library(tidyverse)
+library(ivDiag)
 
 panel19_23_stacked <- read_csv("panel19_23_stacked.csv")
 ```
@@ -55,8 +56,7 @@ In addition, political orientation is encoded on a 0 to 10 scale. We rescale it 
 
 panel19_23_stacked <- panel19_23_stacked %>% 
   mutate(treatment_z = if_else((right==0 & survey_year>=2022), true= 1, false=0)) %>% 
-  mutate(treatment_23 =if_else((right==0 & survey_year==2023), true= 1, false=0)) %>% 
-  mutate(political_orientation=political_orientation+1)
+  mutate(treatment_23 =if_else((right==0 & survey_year==2023), true= 1, false=0))
 ```
 
 
@@ -78,7 +78,7 @@ panel19_23_stacked %>%
   geom_line()+
   labs(title="Mean propensity to vote by political orientation",
        subtitle = "1=right-leaning, 0=left-leaning, no swing",
-       caption="LISS Panel data 2019-2023: 1658 observations")
+       caption="LISS Panel data 2019-2023: 1658*5= 8290 observations")
 ```
 
 
@@ -125,11 +125,67 @@ c(main_ATT_1, ATT_1_CI_lower_boundary, ATT_1_CI_upper_boundary)
 ```
 
 
-For the second stage of our two-stage least-squares (TSLS) we need to store the predicted values of political orientation from the first stage model above (dd_reg). We'll store them in a new variable called pred_political_orientation.
+Event study: parallel trends assumption
+
+```{r}
+panel19_23_stacked <- panel19_23_stacked %>% 
+  mutate(lag19=if_else((survey_year==2019 & right==0), true=1, false=0),
+         lag20=if_else((survey_year==2020 & right==0), true=1, false=0),
+         lag21=if_else((survey_year==2021 & right==0), true=1, false=0),
+         lead22=if_else((survey_year==2022 & right==0), true=1, false=0),
+         lead23=if_else((survey_year==2023 & right==0), true=1, false=0))
+
+```
 
 
 
 ```{r}
+event_study_reg <- felm(propensity_to_vote ~ lag19 + lag20 + lag21 + lead22 | survey_year + nomem_encr, data=panel19_23_stacked)
+```
+
+
+```{r}
+summary(event_study_reg)
+```
+
+
+
+```{r}
+
+plot_order <-c("lag19", "lag20", "lag21", "lead22")
+
+#Plotting results
+leadslags_plot <- tibble(
+  sd = summary(event_study_reg)$coefficients[, "Std. Error"],
+  mean = coef(event_study_reg)[plot_order],
+  label = plot_order
+)
+
+leadslags_plot
+
+leadslags_plot %>%
+  ggplot(aes(x = label, y = mean,
+             ymin = mean-qnorm(0.95)*sd,
+             ymax = mean+qnorm(0.95)*sd)) +
+  geom_hline(yintercept = ATT_1_CI_lower_boundary, color = "red") +
+  geom_hline(yintercept = -ATT_1_CI_lower_boundary, color = "red") +
+  geom_pointrange() +
+  theme_minimal() +
+  xlab("Years before the war") +
+  ylab("Propensity to vote") +
+  geom_hline(yintercept = 0,
+             linetype = "dashed") +
+  geom_vline(xintercept = 0,
+             linetype = "dashed")
+```
+
+
+
+For the second stage of our two-stage least-squares (TSLS) we need to store the predicted values of political orientation from the first stage model above (dd_reg). We'll store them in a new variable called pred_political_orientation.
+
+
+
+```{r message=FALSE, warning=FALSE}
 panel19_23_stacked <- panel19_23_stacked %>% 
   mutate(pred_political_orientation = as.tibble(fitted(dd_reg)) %>% 
   pull(political_orientation))
@@ -262,4 +318,90 @@ eff_F(panel19_23_stacked, Y = "propensity_to_vote", D = "political_orientation",
 ```
 
 
+
+Anderson-Rubin confidence set: F is too low.
+
+```{r}
+ivDiag(panel19_23_stacked, Y="propensity_to_vote", D="political_orientation", Z="treatment_z")$AR
+```
+
+
+
+## Panel with the swingers 
+
+We redo the same exercise as above, but allowing for swingers from LEFT to RIGHT at any point during the 5 years.
+
+```{r message=FALSE, warning=FALSE}
+panel_swingers <- read_csv("panel_swing_stacked_19_23.csv")
+```
+
+
+```{r}
+panel_swingers <- panel_swingers %>% 
+  mutate(treatment_z = if_else((right==0 & survey_year>=2022), true= 1, false=0)) %>% 
+  mutate(treatment_23 =if_else((right==0 & survey_year==2023), true= 1, false=0))
+```
+
+
+```{r}
+
+panel_swingers %>% 
+  dplyr:: group_by(right, survey_year) %>% 
+  dplyr:: summarise(mean_prop_to_vote= (mean(propensity_to_vote))) %>% 
+  dplyr:: mutate(right=as.factor(right)) %>% 
+  ggplot(aes(x=survey_year, y=mean_prop_to_vote, color=right))+
+  geom_point()+
+  geom_line()+
+  labs(title="Mean propensity to vote by political orientation",
+       subtitle = "1=right-leaning, 0=left-leaning, with LEFT to RIGHT swing",
+       caption="LISS Panel data 2019-2023: 2224 *5 = 11'120 observations")
+```
+
+
+```{r}
+feols(
+  propensity_to_vote ~ 1 | survey_year + nomem_encr | political_orientation ~ treatment_z, 
+  data = panel_swingers,
+  vcov = "hc1"
+)
+```
+
+
+The estimate coefficient is lower than before.
+
+```{r}
+library(ivDiag)
+
+eff_F(panel_swingers, Y = "propensity_to_vote", D = "political_orientation", Z = "treatment_z")
+```
+
+
+## Panel with swingers and using "age" as a covariate
+
+We can add age because did not change with the Ukraine-Russian war, but we will model it as a quadratic function.
+
+```{r}
+feols(
+  propensity_to_vote ~ 1 + age | survey_year + nomem_encr | political_orientation ~ treatment_z + age, 
+  data = panel_swingers,
+  vcov = "hc1"
+)
+```
+
+
+Now let's try with a quadratic age control.
+
+```{r}
+panel_swingers <- panel_swingers %>% 
+  mutate(age_squared= age^2)
+```
+
+
+```{r}
+feols(
+  propensity_to_vote ~ 1 + age^2 | survey_year + nomem_encr | political_orientation ~ treatment_z + age^2, 
+  data = panel_swingers,
+  vcov = "hc1"
+)
+```
 

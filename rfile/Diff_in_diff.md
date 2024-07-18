@@ -16,6 +16,7 @@ library(haven)
 library(lfe)
 library(panelView)
 library(tidyverse)
+library(ivDiag)
 
 panel19_23_stacked <- read_csv("panel19_23_stacked.csv")
 ```
@@ -71,8 +72,7 @@ rescale it to 1 to 11 (to avoid having zeros).
 ``` r
 panel19_23_stacked <- panel19_23_stacked %>% 
   mutate(treatment_z = if_else((right==0 & survey_year>=2022), true= 1, false=0)) %>% 
-  mutate(treatment_23 =if_else((right==0 & survey_year==2023), true= 1, false=0)) %>% 
-  mutate(political_orientation=political_orientation+1)
+  mutate(treatment_23 =if_else((right==0 & survey_year==2023), true= 1, false=0))
 ```
 
 ``` r
@@ -83,12 +83,12 @@ panel19_23_stacked %>%
     ## # A tibble: 6 × 9
     ##    ...1 nomem_encr   age propensity_to_vote political_orientation survey_year
     ##   <dbl>      <dbl> <dbl>              <dbl>                 <dbl>       <dbl>
-    ## 1     1     800009    63                 95                     2        2019
-    ## 2     2     800009    64                 95                     3        2020
-    ## 3     3     800009    65                100                     3        2021
-    ## 4     4     800009    66                100                     3        2022
-    ## 5     5     800009    67                 95                     3        2023
-    ## 6     6     800015    56                100                     4        2019
+    ## 1     1     800009    63                 95                     1        2019
+    ## 2     2     800009    64                 95                     2        2020
+    ## 3     3     800009    65                100                     2        2021
+    ## 4     4     800009    66                100                     2        2022
+    ## 5     5     800009    67                 95                     2        2023
+    ## 6     6     800015    56                100                     3        2019
     ## # ℹ 3 more variables: right <dbl>, treatment_z <dbl>, treatment_23 <dbl>
 
 ## Plotting the data
@@ -103,7 +103,7 @@ panel19_23_stacked %>%
   geom_line()+
   labs(title="Mean propensity to vote by political orientation",
        subtitle = "1=right-leaning, 0=left-leaning, no swing",
-       caption="LISS Panel data 2019-2023: 1658 observations")
+       caption="LISS Panel data 2019-2023: 1658*5= 8290 observations")
 ```
 
     ## `summarise()` has grouped output by 'right'. You can override using the
@@ -178,6 +178,86 @@ c(main_ATT_1, ATT_1_CI_lower_boundary, ATT_1_CI_upper_boundary)
 
     ## [1] 0.15218437 0.09992452 0.20444422
 
+Event study: parallel trends assumption
+
+``` r
+panel19_23_stacked <- panel19_23_stacked %>% 
+  mutate(lag19=if_else((survey_year==2019 & right==0), true=1, false=0),
+         lag20=if_else((survey_year==2020 & right==0), true=1, false=0),
+         lag21=if_else((survey_year==2021 & right==0), true=1, false=0),
+         lead22=if_else((survey_year==2022 & right==0), true=1, false=0),
+         lead23=if_else((survey_year==2023 & right==0), true=1, false=0))
+```
+
+``` r
+event_study_reg <- felm(propensity_to_vote ~ lag19 + lag20 + lag21 + lead22 | survey_year + nomem_encr, data=panel19_23_stacked)
+```
+
+``` r
+summary(event_study_reg)
+```
+
+    ## 
+    ## Call:
+    ##    felm(formula = propensity_to_vote ~ lag19 + lag20 + lag21 + lead22 |      survey_year + nomem_encr, data = panel19_23_stacked) 
+    ## 
+    ## Residuals:
+    ##     Min      1Q  Median      3Q     Max 
+    ## -75.940  -0.482   0.167   1.127  55.966 
+    ## 
+    ## Coefficients:
+    ##        Estimate Std. Error t value Pr(>|t|)
+    ## lag19    0.5818     0.7697   0.756    0.450
+    ## lag20    0.6105     0.7697   0.793    0.428
+    ## lag21   -0.1922     0.7697  -0.250    0.803
+    ## lead22   0.3662     0.7697   0.476    0.634
+    ## 
+    ## Residual standard error: 11.07 on 6624 degrees of freedom
+    ## Multiple R-squared(full model): 0.5935   Adjusted R-squared: 0.4913 
+    ## Multiple R-squared(proj model): 0.0002593   Adjusted R-squared: -0.251 
+    ## F-statistic(full model):5.808 on 1665 and 6624 DF, p-value: < 2.2e-16 
+    ## F-statistic(proj model): 0.4295 on 4 and 6624 DF, p-value: 0.7874
+
+``` r
+plot_order <-c("lag19", "lag20", "lag21", "lead22")
+
+#Plotting results
+leadslags_plot <- tibble(
+  sd = summary(event_study_reg)$coefficients[, "Std. Error"],
+  mean = coef(event_study_reg)[plot_order],
+  label = plot_order
+)
+
+leadslags_plot
+```
+
+    ## # A tibble: 4 × 3
+    ##      sd   mean label 
+    ##   <dbl>  <dbl> <chr> 
+    ## 1 0.770  0.582 lag19 
+    ## 2 0.770  0.611 lag20 
+    ## 3 0.770 -0.192 lag21 
+    ## 4 0.770  0.366 lead22
+
+``` r
+leadslags_plot %>%
+  ggplot(aes(x = label, y = mean,
+             ymin = mean-qnorm(0.95)*sd,
+             ymax = mean+qnorm(0.95)*sd)) +
+  geom_hline(yintercept = ATT_1_CI_lower_boundary, color = "red") +
+  geom_hline(yintercept = -ATT_1_CI_lower_boundary, color = "red") +
+  geom_pointrange() +
+  theme_minimal() +
+  xlab("Years before the war") +
+  ylab("Propensity to vote") +
+  geom_hline(yintercept = 0,
+             linetype = "dashed") +
+  geom_vline(xintercept = 0,
+             linetype = "dashed")
+```
+
+![](Diff_in_diff_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+
 For the second stage of our two-stage least-squares (TSLS) we need to
 store the predicted values of political orientation from the first stage
 model above (dd_reg). We’ll store them in a new variable called
@@ -188,14 +268,6 @@ panel19_23_stacked <- panel19_23_stacked %>%
   mutate(pred_political_orientation = as.tibble(fitted(dd_reg)) %>% 
   pull(political_orientation))
 ```
-
-    ## Warning: There was 1 warning in `mutate()`.
-    ## ℹ In argument: `pred_political_orientation = as.tibble(fitted(dd_reg)) %>%
-    ##   pull(political_orientation)`.
-    ## Caused by warning:
-    ## ! `as.tibble()` was deprecated in tibble 2.0.0.
-    ## ℹ Please use `as_tibble()` instead.
-    ## ℹ The signature and semantics have changed, see `?as_tibble`.
 
 Just to get an idea of how predicted political_orientation and true
 political orientation compare, we’ll make a scatterplot.
@@ -209,7 +281,7 @@ panel19_23_stacked %>%
   labs(title="Comparison between political orientation and predicted political orientation")
 ```
 
-![](Diff_in_diff_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
+![](Diff_in_diff_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 
 For the second stage, we regress the outcome (propensity to vote) on the
 predicted political orientation, with fixed effects.
@@ -287,7 +359,7 @@ summary(ols_reg)
     ## Observations: 8,290
     ## Standard-errors: Heteroskedasticity-robust 
     ##                        Estimate Std. Error   t value   Pr(>|t|)    
-    ## (Intercept)           95.972762   0.437545 219.34363  < 2.2e-16 ***
+    ## (Intercept)           95.616400   0.375839 254.40756  < 2.2e-16 ***
     ## political_orientation -0.356362   0.067875  -5.25027 1.5564e-07 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
@@ -310,14 +382,14 @@ binscatter <- binsreg(panel19_23_stacked$propensity_to_vote, panel19_23_stacked$
     ## Warning in binsreg(panel19_23_stacked$propensity_to_vote,
     ## panel19_23_stacked$political_orientation): dots=c(0,0) used.
 
-![](Diff_in_diff_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+![](Diff_in_diff_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
 
 ``` r
 binscatter$bins_plot +
   labs(y = "Propensity to vote", x = "Political orientation")
 ```
 
-![](Diff_in_diff_files/figure-gfm/unnamed-chunk-16-2.png)<!-- -->
+![](Diff_in_diff_files/figure-gfm/unnamed-chunk-20-2.png)<!-- -->
 
 Simple TSLS, no fixed, effects:
 
@@ -336,7 +408,7 @@ feols(
     ## Observations: 8,290
     ## Standard-errors: Heteroskedasticity-robust 
     ##                            Estimate Std. Error   t value  Pr(>|t|)    
-    ## (Intercept)               94.007187   1.179341 79.711640 < 2.2e-16 ***
+    ## (Intercept)               93.964346   0.996342 94.309350 < 2.2e-16 ***
     ## fit_political_orientation -0.042841   0.185301 -0.231197   0.81717    
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
@@ -376,11 +448,7 @@ OLS results.
 
 ``` r
 library(ivDiag)
-```
 
-    ## ## Tutorial: https://yiqingxu.org/packages/ivDiag/
-
-``` r
 eff_F(panel19_23_stacked, Y = "propensity_to_vote", D = "political_orientation", Z = "treatment_z")
 ```
 
@@ -432,3 +500,169 @@ eff_F(panel19_23_stacked, Y = "propensity_to_vote", D = "political_orientation",
 ```
 
     ## [1] 1744.044
+
+Anderson-Rubin confidence set: F is too low.
+
+``` r
+ivDiag(panel19_23_stacked, Y="propensity_to_vote", D="political_orientation", Z="treatment_z")$AR
+```
+
+    ## Bootstrapping:
+
+    ## Parallelising 1000 reps on 7 cores
+
+    ## Bootstrap took22.393sec.
+
+    ## AR Test Inversion...
+
+    ## Parallelising on 7 cores
+
+    ## $Fstat
+    ##         F       df1       df2         p 
+    ##    0.0534    1.0000 8288.0000    0.8172 
+    ## 
+    ## $ci.print
+    ## [1] "[-0.4023, 0.3203]"
+    ## 
+    ## $ci
+    ## [1] -0.4023  0.3203
+    ## 
+    ## $bounded
+    ## [1] TRUE
+
+## Panel with the swingers
+
+We redo the same exercise as above, but allowing for swingers from LEFT
+to RIGHT at any point during the 5 years.
+
+``` r
+panel_swingers <- read_csv("panel_swing_stacked_19_23.csv")
+```
+
+``` r
+panel_swingers <- panel_swingers %>% 
+  mutate(treatment_z = if_else((right==0 & survey_year>=2022), true= 1, false=0)) %>% 
+  mutate(treatment_23 =if_else((right==0 & survey_year==2023), true= 1, false=0))
+```
+
+``` r
+panel_swingers %>% 
+  dplyr:: group_by(right, survey_year) %>% 
+  dplyr:: summarise(mean_prop_to_vote= (mean(propensity_to_vote))) %>% 
+  dplyr:: mutate(right=as.factor(right)) %>% 
+  ggplot(aes(x=survey_year, y=mean_prop_to_vote, color=right))+
+  geom_point()+
+  geom_line()+
+  labs(title="Mean propensity to vote by political orientation",
+       subtitle = "1=right-leaning, 0=left-leaning, with LEFT to RIGHT swing",
+       caption="LISS Panel data 2019-2023: 2224 *5 = 11'120 observations")
+```
+
+    ## `summarise()` has grouped output by 'right'. You can override using the
+    ## `.groups` argument.
+
+![](Diff_in_diff_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
+
+``` r
+feols(
+  propensity_to_vote ~ 1 | survey_year + nomem_encr | political_orientation ~ treatment_z, 
+  data = panel_swingers,
+  vcov = "hc1"
+)
+```
+
+    ## TSLS estimation - Dep. Var.: propensity_to_vote
+    ##                   Endo.    : political_orientation
+    ##                   Instr.   : treatment_z
+    ## Second stage: Dep. Var.: propensity_to_vote
+    ## Observations: 11,120
+    ## Fixed-effects: survey_year: 5,  nomem_encr: 2,224
+    ## Standard-errors: Heteroskedasticity-robust 
+    ##                            Estimate Std. Error   t value Pr(>|t|) 
+    ## fit_political_orientation -0.353088   0.879299 -0.401556  0.68802 
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## RMSE: 10.2     Adj. R2:  0.522507
+    ##              Within R2: -0.001258
+    ## F-test (1st stage), political_orientation: stat = 266.7    , p < 2.2e-16 , on 1 and 8,891 DoF.
+    ##                                Wu-Hausman: stat =   0.37273, p = 0.541536, on 1 and 8,890 DoF.
+
+The estimate coefficient is lower than before.
+
+``` r
+library(ivDiag)
+
+eff_F(panel_swingers, Y = "propensity_to_vote", D = "political_orientation", Z = "treatment_z")
+```
+
+    ## [1] 3952.492
+
+## Panel with swingers and using “age” as a covariate
+
+We can add age because did not change with the Ukraine-Russian war, but
+we will model it as a quadratic function.
+
+``` r
+feols(
+  propensity_to_vote ~ 1 + age | survey_year + nomem_encr | political_orientation ~ treatment_z + age, 
+  data = panel_swingers,
+  vcov = "hc1"
+)
+```
+
+    ## The instrument 'age' has been removed because of collinearity (see $collin.var).
+
+    ## TSLS estimation - Dep. Var.: propensity_to_vote
+    ##                   Endo.    : political_orientation
+    ##                   Instr.   : treatment_z, age
+    ## Second stage: Dep. Var.: propensity_to_vote
+    ## Observations: 11,120
+    ## Fixed-effects: survey_year: 5,  nomem_encr: 2,224
+    ## Standard-errors: Heteroskedasticity-robust 
+    ##                            Estimate Std. Error   t value Pr(>|t|) 
+    ## fit_political_orientation -0.345948   0.878534 -0.393779  0.69375 
+    ## age                        0.169801   0.133479  1.272124  0.20336 
+    ## ... 1 variable was removed because of collinearity (age)
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## RMSE: 10.2     Adj. R2:  0.52249
+    ##              Within R2: -0.00118
+    ## F-test (1st stage), political_orientation: stat = 133.6      , p < 2.2e-16 , on 2 and 8,890 DoF.
+    ##                                Wu-Hausman: stat =   0.362035 , p = 0.547393, on 1 and 8,889 DoF.
+    ##                                    Sargan: stat =  -2.469e-12, p = 1       , on 1 DoF.
+
+Now let’s try with a quadratic age control.
+
+``` r
+panel_swingers <- panel_swingers %>% 
+  mutate(age_squared= age^2)
+```
+
+``` r
+feols(
+  propensity_to_vote ~ 1 + age^2 | survey_year + nomem_encr | political_orientation ~ treatment_z + age^2, 
+  data = panel_swingers,
+  vcov = "hc1"
+)
+```
+
+    ## The instrument 'I(age^2)' has been removed because of collinearity (see $collin.var).
+
+    ## TSLS estimation - Dep. Var.: propensity_to_vote
+    ##                   Endo.    : political_orientation
+    ##                   Instr.   : treatment_z, I(age^2)
+    ## Second stage: Dep. Var.: propensity_to_vote
+    ## Observations: 11,120
+    ## Fixed-effects: survey_year: 5,  nomem_encr: 2,224
+    ## Standard-errors: Heteroskedasticity-robust 
+    ##                            Estimate Std. Error   t value Pr(>|t|) 
+    ## fit_political_orientation -0.375629   0.875476 -0.429057  0.66789 
+    ## I(age^2)                  -0.001158   0.001373 -0.843588  0.39892 
+    ## ... 1 variable was removed because of collinearity (I(age^2))
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## RMSE: 10.2     Adj. R2:  0.522428
+    ##              Within R2: -0.00131 
+    ## F-test (1st stage), political_orientation: stat = 134.3     , p < 2.2e-16 , on 2 and 8,890 DoF.
+    ##                                Wu-Hausman: stat =   0.411576, p = 0.521187, on 1 and 8,889 DoF.
+    ##                                    Sargan: stat =   0       , p = 1       , on 1 DoF.
