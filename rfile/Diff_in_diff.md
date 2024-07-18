@@ -511,7 +511,7 @@ ivDiag(panel19_23_stacked, Y="propensity_to_vote", D="political_orientation", Z=
 
     ## Parallelising 1000 reps on 7 cores
 
-    ## Bootstrap took22.393sec.
+    ## Bootstrap took22.108sec.
 
     ## AR Test Inversion...
 
@@ -530,7 +530,7 @@ ivDiag(panel19_23_stacked, Y="propensity_to_vote", D="political_orientation", Z=
     ## $bounded
     ## [1] TRUE
 
-## Panel with the swingers
+## Panel with swingers (from left to right)
 
 We redo the same exercise as above, but allowing for swingers from LEFT
 to RIGHT at any point during the 5 years.
@@ -565,7 +565,7 @@ panel_swingers %>%
 
 ``` r
 feols(
-  propensity_to_vote ~ 1 | survey_year + nomem_encr | political_orientation ~ treatment_z, 
+  propensity_to_vote ~ 1 | survey_year + nomem_encr | political_orientation ~ treatment_23, 
   data = panel_swingers,
   vcov = "hc1"
 )
@@ -573,29 +573,29 @@ feols(
 
     ## TSLS estimation - Dep. Var.: propensity_to_vote
     ##                   Endo.    : political_orientation
-    ##                   Instr.   : treatment_z
+    ##                   Instr.   : treatment_23
     ## Second stage: Dep. Var.: propensity_to_vote
     ## Observations: 11,120
     ## Fixed-effects: survey_year: 5,  nomem_encr: 2,224
     ## Standard-errors: Heteroskedasticity-robust 
-    ##                            Estimate Std. Error   t value Pr(>|t|) 
-    ## fit_political_orientation -0.353088   0.879299 -0.401556  0.68802 
+    ##                           Estimate Std. Error t value Pr(>|t|) 
+    ## fit_political_orientation 0.527623    1.70973  0.3086  0.75763 
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## RMSE: 10.2     Adj. R2:  0.522507
-    ##              Within R2: -0.001258
-    ## F-test (1st stage), political_orientation: stat = 266.7    , p < 2.2e-16 , on 1 and 8,891 DoF.
-    ##                                Wu-Hausman: stat =   0.37273, p = 0.541536, on 1 and 8,890 DoF.
+    ## RMSE: 10.2     Adj. R2:  0.522842
+    ##              Within R2: -5.544e-4
+    ## F-test (1st stage), political_orientation: stat = 66.9     , p = 3.241e-16, on 1 and 8,891 DoF.
+    ##                                Wu-Hausman: stat =  0.046463, p = 0.829342 , on 1 and 8,890 DoF.
 
-The estimate coefficient is lower than before.
+The estimate coefficient is still insignificant.
 
 ``` r
 library(ivDiag)
 
-eff_F(panel_swingers, Y = "propensity_to_vote", D = "political_orientation", Z = "treatment_z")
+eff_F(panel_swingers, Y = "propensity_to_vote", D = "political_orientation", Z = "treatment_23")
 ```
 
-    ## [1] 3952.492
+    ## [1] 1973.617
 
 ## Panel with swingers and using “age” as a covariate
 
@@ -604,7 +604,7 @@ we will model it as a quadratic function.
 
 ``` r
 feols(
-  propensity_to_vote ~ 1 + age | survey_year + nomem_encr | political_orientation ~ treatment_z + age, 
+  propensity_to_vote ~ 1 + age | survey_year + nomem_encr | political_orientation ~ treatment_23 + age, 
   data = panel_swingers,
   vcov = "hc1"
 )
@@ -614,33 +614,28 @@ feols(
 
     ## TSLS estimation - Dep. Var.: propensity_to_vote
     ##                   Endo.    : political_orientation
-    ##                   Instr.   : treatment_z, age
+    ##                   Instr.   : treatment_23, age
     ## Second stage: Dep. Var.: propensity_to_vote
     ## Observations: 11,120
     ## Fixed-effects: survey_year: 5,  nomem_encr: 2,224
     ## Standard-errors: Heteroskedasticity-robust 
-    ##                            Estimate Std. Error   t value Pr(>|t|) 
-    ## fit_political_orientation -0.345948   0.878534 -0.393779  0.69375 
-    ## age                        0.169801   0.133479  1.272124  0.20336 
+    ##                           Estimate Std. Error  t value Pr(>|t|) 
+    ## fit_political_orientation 0.550229   1.705066 0.322703  0.74693 
+    ## age                       0.153470   0.134233 1.143312  0.25294 
     ## ... 1 variable was removed because of collinearity (age)
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## RMSE: 10.2     Adj. R2:  0.52249
-    ##              Within R2: -0.00118
-    ## F-test (1st stage), political_orientation: stat = 133.6      , p < 2.2e-16 , on 2 and 8,890 DoF.
-    ##                                Wu-Hausman: stat =   0.362035 , p = 0.547393, on 1 and 8,889 DoF.
-    ##                                    Sargan: stat =  -2.469e-12, p = 1       , on 1 DoF.
+    ## RMSE: 10.2     Adj. R2:  0.522761
+    ##              Within R2: -6.113e-4
+    ## F-test (1st stage), political_orientation: stat = 33.7      , p = 2.75e-15, on 2 and 8,890 DoF.
+    ##                                Wu-Hausman: stat =  0.052931 , p = 0.818045, on 1 and 8,889 DoF.
+    ##                                    Sargan: stat = -2.469e-12, p = 1       , on 1 DoF.
 
 Now let’s try with a quadratic age control.
 
 ``` r
-panel_swingers <- panel_swingers %>% 
-  mutate(age_squared= age^2)
-```
-
-``` r
 feols(
-  propensity_to_vote ~ 1 + age^2 | survey_year + nomem_encr | political_orientation ~ treatment_z + age^2, 
+  propensity_to_vote ~ 1 + age^2 | survey_year + nomem_encr | political_orientation ~ treatment_23 + age^2, 
   data = panel_swingers,
   vcov = "hc1"
 )
@@ -650,19 +645,19 @@ feols(
 
     ## TSLS estimation - Dep. Var.: propensity_to_vote
     ##                   Endo.    : political_orientation
-    ##                   Instr.   : treatment_z, I(age^2)
+    ##                   Instr.   : treatment_23, I(age^2)
     ## Second stage: Dep. Var.: propensity_to_vote
     ## Observations: 11,120
     ## Fixed-effects: survey_year: 5,  nomem_encr: 2,224
     ## Standard-errors: Heteroskedasticity-robust 
     ##                            Estimate Std. Error   t value Pr(>|t|) 
-    ## fit_political_orientation -0.375629   0.875476 -0.429057  0.66789 
-    ## I(age^2)                  -0.001158   0.001373 -0.843588  0.39892 
+    ## fit_political_orientation  0.475079   1.696959  0.279959  0.77952 
+    ## I(age^2)                  -0.001281   0.001405 -0.912234  0.36167 
     ## ... 1 variable was removed because of collinearity (I(age^2))
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## RMSE: 10.2     Adj. R2:  0.522428
-    ##              Within R2: -0.00131 
-    ## F-test (1st stage), political_orientation: stat = 134.3     , p < 2.2e-16 , on 2 and 8,890 DoF.
-    ##                                Wu-Hausman: stat =   0.411576, p = 0.521187, on 1 and 8,889 DoF.
-    ##                                    Sargan: stat =   0       , p = 1       , on 1 DoF.
+    ## RMSE: 10.2     Adj. R2:  0.522919
+    ##              Within R2: -2.802e-4
+    ## F-test (1st stage), political_orientation: stat = 33.9     , p = 2.154e-15, on 2 and 8,890 DoF.
+    ##                                Wu-Hausman: stat =  0.034065, p = 0.853573 , on 1 and 8,889 DoF.
+    ##                                    Sargan: stat =  0       , p = 1        , on 1 DoF.

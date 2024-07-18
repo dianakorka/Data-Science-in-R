@@ -327,7 +327,7 @@ ivDiag(panel19_23_stacked, Y="propensity_to_vote", D="political_orientation", Z=
 
 
 
-## Panel with the swingers 
+## Panel with swingers (from left to right)
 
 We redo the same exercise as above, but allowing for swingers from LEFT to RIGHT at any point during the 5 years.
 
@@ -360,19 +360,19 @@ panel_swingers %>%
 
 ```{r}
 feols(
-  propensity_to_vote ~ 1 | survey_year + nomem_encr | political_orientation ~ treatment_z, 
+  propensity_to_vote ~ 1 | survey_year + nomem_encr | political_orientation ~ treatment_23, 
   data = panel_swingers,
   vcov = "hc1"
 )
 ```
 
 
-The estimate coefficient is lower than before.
+The estimate coefficient is still insignificant.
 
 ```{r}
 library(ivDiag)
 
-eff_F(panel_swingers, Y = "propensity_to_vote", D = "political_orientation", Z = "treatment_z")
+eff_F(panel_swingers, Y = "propensity_to_vote", D = "political_orientation", Z = "treatment_23")
 ```
 
 
@@ -382,7 +382,7 @@ We can add age because did not change with the Ukraine-Russian war, but we will 
 
 ```{r}
 feols(
-  propensity_to_vote ~ 1 + age | survey_year + nomem_encr | political_orientation ~ treatment_z + age, 
+  propensity_to_vote ~ 1 + age | survey_year + nomem_encr | political_orientation ~ treatment_23 + age, 
   data = panel_swingers,
   vcov = "hc1"
 )
@@ -391,15 +391,11 @@ feols(
 
 Now let's try with a quadratic age control.
 
-```{r}
-panel_swingers <- panel_swingers %>% 
-  mutate(age_squared= age^2)
-```
 
 
 ```{r}
 feols(
-  propensity_to_vote ~ 1 + age^2 | survey_year + nomem_encr | political_orientation ~ treatment_z + age^2, 
+  propensity_to_vote ~ 1 + age^2 | survey_year + nomem_encr | political_orientation ~ treatment_23 + age^2, 
   data = panel_swingers,
   vcov = "hc1"
 )
