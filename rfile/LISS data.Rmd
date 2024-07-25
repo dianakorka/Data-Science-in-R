@@ -83,7 +83,7 @@ data23_cleaned %>%
 
 We notice some data entry points are erroneous: -9 min value for several variables. And there are missing values as well for propensity to vote and for political orientation (right-left).
 
-Since we cannot impute data from another source on propensity to vote or political orientation, we need to remve the rows where either one of these variables has missing data.
+Since we cannot impute data from another source on propensity to vote or political orientation, we need to remove the rows where either one of these variables has missing data.
 
 Below are the rows that will be dropped conditional of missing data for either voting propensity or political orientation. A total of 545 samples.
 
@@ -93,6 +93,7 @@ data23_cleaned %>%
   filter(is.na(cv23o101) | is.na(cv23o243)) %>% 
   dim()
 ```
+
 
 Dropping the missing values.
 
@@ -132,6 +133,9 @@ data23_cleaned <- data23_cleaned %>%
 data23_cleaned %>% 
   summary()
 ```
+
+
+
 
 ### Visualizing the data distributions
 
@@ -284,7 +288,7 @@ data22 <- read_delim("~/Documents/Amsterdam/rfile/cv22n_EN_1.0p.csv",
 ```
 
 
-
+Applying the same transformation steps as above.
 
 ```{r}
 data22_cleaned <- data22 %>% 
@@ -370,7 +374,7 @@ data22_cleaned %>%
 ``` 
 
 
-How many respondents have changed their political orientation from 2022 to 2023: 447.
+How many respondents have changed their political orientation from 2022 to 2023? 447.
 
 
 ```{r}
@@ -428,13 +432,17 @@ data22_23 %>%
 ### Reading data and applying the same transformations to the 2019, 2020 and 2021 panels
 
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 data21 <- read_dta("cv21m_EN_1.0p.dta")
 data20 <- read_dta("cv20l_EN_1.0p.dta")
 data19 <- read_dta("cv19k_EN_1.0p.dta")
+
+data24 <- read_delim("~/Documents/Amsterdam/rfile/cv24p_EN_1.0p.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+
 ```
 
-
+Applying the same transformation steps as above.
 
 ```{r}
 data21_cleaned <- data21 %>% 
@@ -472,37 +480,63 @@ data19_cleaned <- data19 %>%
 ```
 
 
+```{r}
 
+data24_cleaned <- data24 %>% 
+  select(nomem_encr, cv24p160, cv24p243, cv24p101) %>% 
+  drop_na(cv24p101, cv24p243) %>% 
+  filter(cv24p243>0 & cv24p101>0) %>% 
+  mutate(survey_year.24=2024) %>% 
+  dplyr::rename(age.24=cv24p160, propensity_to_vote.24=cv24p243, political_orientation.24=cv24p101) %>% 
+  mutate(right.24=case_when(political_orientation.24<=5 ~ 0, TRUE ~ 1)) %>% 
+  mutate(right.24=as.factor(right.24))
+```
 
-### Joining together datasets for all 5 years
 
 
 ```{r}
+data22_cleaned <- data22_cleaned %>% 
+  dplyr::rename(age.22=age, propensity_to_vote.22=propensity_to_vote, political_orientation.22=political_orientation, right.22=right, survey_year.22=survey_year)
+```
+
+
+```{r}
+data23_cleaned <- data23_cleaned %>% 
+  dplyr::rename(age.23=age, propensity_to_vote.23=propensity_to_vote, political_orientation.23=political_orientation, right.23=right, survey_year.23=survey_year)
+```
+
+
+
+## Joining together datasets for all 5 years
+
+
+```{r message=FALSE, warning=FALSE}
 library(plyr)
 
-panel_19_23 <- join_all(list(data19_cleaned, data20_cleaned, data21_cleaned, data22_23), 
+panel_19_24 <- join_all(list(data19_cleaned, data20_cleaned, data21_cleaned, data22_cleaned, data23_cleaned, data24_cleaned), 
          by='nomem_encr', type='inner') 
 ```
 
 
 ```{r}
-nrow(panel_19_23)
+nrow(panel_19_24)
 ```
 
 
 In the 2019 data there is an error in the reported propensity to vote data 999, which is not contained in the 0-100 scale. Same situation for political_orientation. 
 
 
+
 ```{r}
-panel_19_23 %>% 
-  filter(propensity_to_vote.19==999)
+panel_19_24 %>% 
+  dplyr:: filter(propensity_to_vote.19 == 999)
 ```
 
-We see that for these people political orientation was 100 over all the following 4 years, so we use the 2020 value.
+We see that for this person political orientation was 100 over all the following 4 years, so we use the 2020 value.
 
 
 ```{r}
-panel_19_23 <- panel_19_23 %>% 
+panel_19_24 <- panel_19_24 %>% 
   mutate(propensity_to_vote.19=if_else(propensity_to_vote.19==999, true=propensity_to_vote.20, false=propensity_to_vote.19)) 
 ```
 
@@ -511,14 +545,15 @@ And now checking for 999 values in political orientation: there are 47 observati
 
 
 ```{r}
-panel_19_23 %>% 
+panel_19_24 %>% 
   filter(political_orientation.19==999) %>% 
   dim()
 ```
 
 
+
 ```{r}
-panel_19_23 <- panel_19_23 %>% 
+panel_19_24 <- panel_19_24 %>% 
   mutate(political_orientation.19=if_else(political_orientation.19==999, 
                                           true=political_orientation.20, false=political_orientation.19),
          right.19=case_when(political_orientation.19<=5 ~ 0, TRUE ~ 1)) %>% 
@@ -528,17 +563,19 @@ panel_19_23 <- panel_19_23 %>%
 
 
 ```{r}
-panel_19_23 %>% 
+panel_19_24 %>% 
   dim()
 ```
 
 
-We try to filter out anyone who swinged left-right and vice-versa over the entire period.
-And we are left with 1658 observations.
+For the next step, we filter out any respondent who swinged left-right and vice-versa over the entire period.
+And we are left with 1587 observations.
 
 
 ```{r}
-panel_19_23 %>% 
+panel_19_24 %>% 
+  filter(right.24==right.23) %>% 
+  filter(right.23==right.22) %>% 
   filter(right.22==right.21) %>% 
   filter(right.21==right.20) %>% 
   filter(right.20==right.19) %>% 
@@ -550,7 +587,9 @@ Descriptive statistics for the panel data.
 
 
 ```{r}
-panel_19_23 %>% 
+panel_19_24 %>% 
+  filter(right.24==right.23) %>% 
+  filter(right.23==right.22) %>%
   filter(right.22==right.21) %>% 
   filter(right.21==right.20) %>% 
   filter(right.20==right.19) %>% 
@@ -560,11 +599,13 @@ panel_19_23 %>%
             mean_prop_vote_21=mean(propensity_to_vote.21),
             mean_prop_vote_22= mean(propensity_to_vote.22),
             mean_prop_vote_23=mean(propensity_to_vote.23),
+            mean_prop_vote_24=mean(propensity_to_vote.24),
             sd_prop_vote_19=sd(propensity_to_vote.19),
             sd_prop_vote_20=sd(propensity_to_vote.20),
             sd_prop_vote_21=sd(propensity_to_vote.21),
             sd_prop_vote_22=sd(propensity_to_vote.22),
-            sd_prop_vote_23=sd(propensity_to_vote.23)) %>% 
+            sd_prop_vote_23=sd(propensity_to_vote.23),
+            sd_prop_vote_24=sd(propensity_to_vote.24)) %>% 
   ungroup()
 ```
 
@@ -575,7 +616,9 @@ Below plotting the summary data from above in a line chart.
 
 ```{r}
 
-panel_19_23 %>% 
+panel_19_24 %>% 
+  filter(right.24==right.23) %>% 
+  filter(right.23==right.22) %>%
   filter(right.22==right.21) %>% 
   filter(right.21==right.20) %>% 
   filter(right.20==right.19) %>% 
@@ -584,7 +627,8 @@ panel_19_23 %>%
                     m2020= mean(propensity_to_vote.20),
             m2021=mean(propensity_to_vote.21),
             m2022= mean(propensity_to_vote.22),
-            m2023=mean(propensity_to_vote.23)) %>% 
+            m2023=mean(propensity_to_vote.23),
+            m2024=mean(propensity_to_vote.24)) %>% 
   ungroup() %>% 
   pivot_longer(cols=c(-right.20),
                names_to="year",
@@ -596,15 +640,18 @@ panel_19_23 %>%
   geom_line()+
   labs(title="Mean propensity to vote by political orientation",
        subtitle = "1=right-leaning, 0=left-leaning, no swing",
-       caption="LISS Panel data 2019-2023: 1658 observations")
+       caption="LISS Panel data 2019-2024: 1402 observations * 6 = 8412 observations",
+       color="With righ-leaning orientation")
 
 ```
 
-Frequency counts by control and treatment group: in our 2019-2023 panel, 792 respondents were left-leaning and 866 were right-leaning.
+Frequency counts by control and treatment group: in our 2019-2024 panel, 708 respondents were left-leaning and 694 were right-leaning.
 
 
 ```{r}
-panel_19_23 %>% 
+panel_19_24 %>% 
+  filter(right.24==right.23) %>% 
+  filter(right.23==right.22) %>%
   filter(right.22==right.21) %>% 
   filter(right.21==right.20) %>% 
   filter(right.20==right.19) %>% 
@@ -620,7 +667,9 @@ panel_19_23 %>%
 Transforming the data into a longer tibble for visualisation (yearly data stacked).
 
 ```{r message=FALSE, warning=FALSE}
-panel19_23_stacked <- panel_19_23 %>% 
+panel19_24_stacked <- panel_19_24 %>% 
+  filter(right.24==right.23) %>% 
+  filter(right.23==right.22) %>%
   filter(right.22==right.21) %>% 
   filter(right.21==right.20) %>% 
   filter(right.20==right.19)  %>% 
@@ -628,7 +677,8 @@ panel19_23_stacked <- panel_19_23 %>%
          right.20=as.numeric(right.20),
          right.21=as.numeric(right.21),
          right.22=as.numeric(right.22),
-         right.23=as.numeric(right.23))%>% 
+         right.23=as.numeric(right.23),
+         right.24=as.numeric(right.24))%>% 
   pivot_longer(col=c(-nomem_encr), names_to="metrics", values_to = "values") %>% 
   mutate(year=str_sub(metrics, start=-2),
          metrics=str_remove(metrics, ".\\d\\d")) %>% 
@@ -645,21 +695,21 @@ And checking distributions.
 
 
 ```{r}
-panel19_23_stacked %>% 
+panel19_24_stacked %>% 
   ggplot(aes(x=right, y=propensity_to_vote))+
   geom_boxplot(fill="cornflowerblue")+
   coord_flip()+
   geom_point(size=1, alpha=0.3)+
-  labs(title = "Boxplot propensity to vote by political orientation for 2019-2023",
-       subtitle = "1=right-leaning, 0=left-leaning",
+  labs(title = "Boxplot propensity to vote by political orientation for 2019-2024",
+       subtitle = "1=right-leaning, 0=left-leaning, no swing, balanced panel",
        x="",
-       caption="LISS2019-2023 panel data")
+       caption="LISS2019-2024 panel data")
 ```
 
 And descriptive statistics
 
 ```{r}
-panel19_23_stacked %>% 
+panel19_24_stacked %>% 
   group_by(right) %>% 
   dplyr:: summarise(counts=n(),
             mean_political_orientation = mean(political_orientation),
@@ -675,27 +725,29 @@ And by age: left-leaning voters are a bit older.
 
 
 ```{r}
-panel19_23_stacked %>% 
+panel19_24_stacked %>% 
   group_by(right) %>% 
   dplyr:: summarise(mean_age = mean(age),
             median_age=median(age),
             sd_age=sd(age)) %>% 
+  ungroup() %>% 
   t()
 ```
 
-```{r}
-panel19_23_stacked %>% 
+```{r message=FALSE, warning=FALSE}
+panel19_24_stacked %>% 
   group_by(right, survey_year) %>% 
   dplyr:: summarise(mean_age = mean(age),
             median_age=median(age),
             sd_age=sd(age)) %>% 
+  ungroup() %>% 
   t()
 ```
 
-We have no missing data in our 2019-2023 panel.
+We have no missing data in our 2019-2024 panel.
 
 ```{r}
-panel_19_23 %>% 
+panel_19_24 %>% 
   vis_miss()
   
 ```
@@ -704,7 +756,7 @@ panel_19_23 %>%
 Try to create age groups and see the distribution by political orientation.
 
 ```{r}
-panel19_23_stacked %>% 
+panel19_24_stacked %>% 
   mutate(age_group =case_when(age<25 ~ "18-24",
                               age<35 ~ "25-34",
                               age<45 ~ "35-44",
@@ -714,14 +766,14 @@ panel19_23_stacked %>%
   group_by(age_group, right, survey_year) %>% 
   dplyr::summarise(count=n(),
                    mean_prop_vote=mean(propensity_to_vote),
-                   median_prop_vote=median(propensity_to_vote))
+                   median_prop_vote=median(propensity_to_vote)) 
 ```
 
 We notice that the standard age groups of younger people are less well represented in our panel.
 
 
 ```{r}
-panel19_23_stacked %>% 
+panel19_24_stacked %>% 
   mutate(survey_year=as.factor(survey_year)) %>% 
   mutate(age_group =case_when(age<25 ~ "18-24",
                               age<35 ~ "25-34",
@@ -733,15 +785,15 @@ panel19_23_stacked %>%
   dplyr::summarise(count=n(),
                    mean_prop_vote=mean(propensity_to_vote),
                    median_prop_vote=median(propensity_to_vote)) %>% 
-  ggplot(aes(x=age_group, y=count)) +
+  ggplot(aes(x=age_group, y=count, fill=right)) +
   geom_col() +
-  labs(title="Stacked panel data 2019-2023 distribution by standard age groups")
+  labs(title="Stacked panel data 2019-2024 distribution by standard age groups")
 ```
 
 So we will regroup data into 3 segments that are more equally represented across the panel.
 
 ```{r}
-panel19_23_stacked %>% 
+panel19_24_stacked %>% 
   mutate(survey_year=as.factor(survey_year)) %>% 
   mutate(age_group =case_when(age<45 ~ "18-44",
                               age<65 ~"45-64",
@@ -754,67 +806,50 @@ panel19_23_stacked %>%
   geom_col()+
   facet_wrap(vars(survey_year)) +
   labs(title="Distribution of age groups over time",
-       subtitle="counts of individuals from the 2019-2023 panel",
-       caption="LISS balanced panel data 2019-2023: 1658 individuals in total")
+       subtitle="counts of individuals from the 2019-2024 panel",
+       caption="LISS balanced panel data 2019-2024: 1402 individuals in total")
 ```
 
-## Panel dataset that includes voters who swinged from left to right
+## Panel dataset including voters who swinged from left to right
 
-We previously excluded from our panel any voter who swinged right-left or vice-versa at any point over the 5 years.
+We previously excluded from our panel any voter who swinged right-left or left-right at any point over the 6 years.
 
 Now we are interested to keep any voters who swinged from left to right. But still remove the ones who swinged from right to left.
 
-This is what we do with the code below. First we join together the 5 years such that we keep a balanced dataset (only individual present in the data for all 5 years are kept).
-
-```{r}
-# fixing some column names
-data22_cleaned <- data22_cleaned %>% 
-  dplyr:: rename(age.22=age, 
-         propensity_to_vote.22=propensity_to_vote, 
-         political_orientation.22=political_orientation, 
-         survey_year.22=survey_year, 
-         right.22=right)
-
-data23_cleaned <- data23_cleaned %>% 
-  dplyr:: rename(age.23=age, 
-         propensity_to_vote.23=propensity_to_vote, 
-         political_orientation.23=political_orientation, 
-         survey_year.23=survey_year, 
-         right.23=right)
-
-```
+This is what we do with the code below. First we join together the 6 years such that we keep a balanced dataset (only individuals with data available for all 6 years are kept).
 
 
 ```{r message=FALSE, warning=FALSE}
 library(plyr)
 
-panel_swing_19_23 <- join_all(list(data19_cleaned, data20_cleaned, data21_cleaned, data22_cleaned, data23_cleaned), 
+panel_swing_19_24 <- join_all(list(data19_cleaned, data20_cleaned, data21_cleaned, data22_cleaned, data23_cleaned, data24_cleaned), 
          by='nomem_encr', type='inner') 
 
-nrow(panel_swing_19_23)
+nrow(panel_swing_19_24)
 ```
 
 
 We know we need to correct some 2019 values encoded as "999" for both propensity to vote and political orientation.
 
 ```{r}
-panel_swing_19_23 <- panel_swing_19_23 %>% 
-  mutate(propensity_to_vote.19= if_else(propensity_to_vote.19==999, true=propensity_to_vote.20, false=propensity_to_vote.19) ) # in 2019 prop to vote encoded at 999, use 2020 value (2 voters), they both had 100 prop to vote over the next 4 years
+panel_swing_19_24 <- panel_swing_19_24 %>% 
+  mutate(propensity_to_vote.19= if_else(propensity_to_vote.19==999, true=propensity_to_vote.20, false=propensity_to_vote.19) ) # in 2019 prop to vote encoded at 999, use 2020 value (1 voter), who had 100 prop to vote over the next 4 years
 ```
 
 
 ```{r}
-panel_swing_19_23 <- panel_swing_19_23 %>% 
+panel_swing_19_24 <- panel_swing_19_24 %>% 
   mutate(political_orientation.19= if_else(political_orientation.19==999, true=political_orientation.20, false=political_orientation.19) ) %>% # if 2019 pol_orient encoded 999, use 2020 value
   mutate(right.19=case_when(political_orientation.19<=5 ~ 0, TRUE ~ 1)) %>% # recalculate right dummy
   mutate(right.19=as.factor(right.19)) # set it as a factor
 ```
 
 
-Voters in our panel who did not swing at all over the entire period: 1658
+Voters in our panel who did not swing at all over the entire period: 1402.
 
 ```{r}
-panel_swing_19_23 %>% 
+panel_swing_19_24 %>% 
+  filter(right.24==right.23) %>% 
   filter(right.23==right.22) %>% 
   filter(right.22==right.21) %>% 
   filter(right.21==right.20) %>% 
@@ -824,47 +859,72 @@ panel_swing_19_23 %>%
 
 
 
-Voters who swang from left (0) to right (1) over the entire period: 566
+Voters who swinged from left (0) to right (1) over the entire period: 611, which represents 44% of our sample.
 
 
 ```{r}
-panel_swing_19_23 %>% 
-  filter((right.19==0 & right.20==1) | (right.20==0 & right.21==1) | (right.21==0 & right.22==1) | (right.22==0 & right.23==1)) %>% 
+panel_swing_19_24 %>% 
+  filter((right.19==0 & right.20==1) | (right.20==0 & right.21==1) | (right.21==0 & right.22==1) | (right.22==0 & right.23==1) | (right.23==0 & right.24==1)) %>% 
   dim()
 ```
 
 
-We can also check that among those who swang left to right, nobody retraced steps back to left.
+We can also check that among those who swang left to right over the entire period, some (407) retraced steps back to left at least at some point.
 
 
 ```{r}
-panel_swing_19_23 %>% 
-  filter((right.19==0 & right.20==1) | (right.20==0 & right.21==1) | (right.21==0 & right.22==1) | (right.22==0 & right.23==1)) %>% 
-  filter(! (right.19==1 & right.20==0) | ! (right.20==1 & right.21==0) | ! (right.21==1 & right.22==0) | ! (right.22==1 & right.23==0)) %>% 
+panel_swing_19_24 %>% 
+  filter((right.19==0 & right.20==1) | (right.20==0 & right.21==1) | (right.21==0 & right.22==1) | (right.22==0 & right.23==1) | (right.23==0 & right.24==1)) %>% 
+  filter(  (right.20==1 & right.21==0) |  (right.21==1 & right.22==0) |  (right.22==1 & right.23==0) |  (right.23==1 & right.24==0)) %>% 
   dim()
 ```
 
 
-Voters who swang from right to left over the entire period: 563
+If we wish to keep only swingers from Left to Right, but without those that changed their mind, this is the correct code to apply.
+
 
 ```{r}
-panel_swing_19_23 %>% 
-  filter((right.19==1 & right.20==0) | (right.20==1 & right.21==0) | (right.21==1 & right.22==0) | (right.22==1 & right.23==0)) %>% 
+panel_swing_19_24 %>% 
+  filter((right.19==0 & right.20==1) | (right.20==0 & right.21==1) | (right.21==0 & right.22==1) | (right.22==0 & right.23==1) | (right.23==0 & right.24==1)) %>% 
+  filter( ! ((right.20==1 & right.21==0) |  (right.21==1 & right.22==0) |  (right.22==1 & right.23==0) |  (right.23==1 & right.24==0))) %>% 
+  dim()
+```
+
+
+If we focus on the 611 swingers from left to right, we can see that more swinging from left to right happened in 2021 and 2024, with some partial and temporary retreat back to the left in 2022 and 2023.
+
+
+```{r}
+panel_swing_19_24 %>% 
+  filter((right.19==0 & right.20==1) | (right.20==0 & right.21==1) | (right.21==0 & right.22==1) | (right.22==0 & right.23==1) | (right.23==0 & right.24==1)) %>% 
+  group_by(right.24) %>% 
+  select(right.19, right.20, right.21, right.22, right.23, right.24) %>% 
+  summary() 
+```
+
+
+Voters who swang from right to left at least at some point over the entire period: 570
+
+```{r}
+panel_swing_19_24 %>% 
+  filter((right.19==1 & right.20==0) | (right.20==1 & right.21==0) | (right.21==1 & right.22==0) | (right.22==1 & right.23==0) | (right.23==1 & right.24==0)) %>% 
   dim()
 ```
 
 
 Building a balanced panel in which we keep only people who swang from left to right:
-1658 who did not swing + 566 who swang left to right =   2224
+1402 who did not swing + 611 who swang left to right =   2013
 
 ```{r}
 
-dplyr:: bind_rows(panel_swing_19_23 %>% 
+dplyr:: bind_rows(panel_swing_19_24 %>% 
   filter((right.19==0 & right.20==1) | 
            (right.20==0 & right.21==1) | 
            (right.21==0 & right.22==1) | 
-           (right.22==0 & right.23==1)), # swingers left to right
-  panel_swing_19_23 %>% 
+           (right.22==0 & right.23==1) |
+           (right.23==0 & right.24==1)), # swingers left to right
+  panel_swing_19_24 %>% 
+  filter(right.24==right.23) %>% 
   filter(right.23==right.22) %>% 
   filter(right.22==right.21) %>% 
   filter(right.21==right.20) %>% 
@@ -875,12 +935,14 @@ dplyr:: bind_rows(panel_swing_19_23 %>%
 
 
 ```{r}
-panel_swing_19_23 <- dplyr:: bind_rows(panel_swing_19_23 %>% 
+panel_swing_19_24 <- dplyr:: bind_rows(panel_swing_19_24 %>% 
   filter((right.19==0 & right.20==1) | 
            (right.20==0 & right.21==1) | 
            (right.21==0 & right.22==1) | 
-           (right.22==0 & right.23==1)), # swingers left to right
-  panel_swing_19_23 %>% 
+           (right.22==0 & right.23==1)|
+           (right.23==0 & right.24==1)), # swingers left to right
+  panel_swing_19_24 %>% 
+  filter(right.24==right.23) %>% 
   filter(right.23==right.22) %>% 
   filter(right.22==right.21) %>% 
   filter(right.21==right.20) %>% 
@@ -892,12 +954,13 @@ panel_swing_19_23 <- dplyr:: bind_rows(panel_swing_19_23 %>%
 Turn the data into a stacked tibble.
 
 ```{r message=FALSE, warning=FALSE}
-panel_swing_stacked_19_23 <- panel_swing_19_23 %>% 
+panel_swing_stacked_19_24 <- panel_swing_19_24 %>% 
   mutate(right.19=as.numeric(right.19),
          right.20=as.numeric(right.20),
          right.21=as.numeric(right.21),
          right.22=as.numeric(right.22),
-         right.23=as.numeric(right.23))%>% 
+         right.23=as.numeric(right.23),
+         right.24=as.numeric(right.24))%>% 
   pivot_longer(col=c(-nomem_encr), names_to="metrics", values_to = "values") %>% 
   mutate(year=str_sub(metrics, start=-2),
          metrics=str_remove(metrics, ".\\d\\d")) %>% 
@@ -911,8 +974,8 @@ panel_swing_stacked_19_23 <- panel_swing_19_23 %>%
 Just checking some descriptive stats for the new panel:
 
 
-```{r}
-panel_swing_stacked_19_23 %>% 
+```{r message=FALSE, warning=FALSE}
+panel_swing_stacked_19_24 %>% 
   group_by(right, survey_year) %>% 
   dplyr:: summarise(counts=n(),
             mean_political_orientation = mean(political_orientation),
@@ -921,15 +984,17 @@ panel_swing_stacked_19_23 %>%
             mean_propensity_to_vote= mean(propensity_to_vote),
             median_propensity_to_vote= median(propensity_to_vote),
             sd_propensity_to_vote=sd(propensity_to_vote)) %>% 
+  ungroup() %>% 
   t()
 ```
 
 Showing panel is balanced.
 
 ```{r}
-panel_swing_stacked_19_23 %>% 
+panel_swing_stacked_19_24 %>% 
   group_by(survey_year) %>% 
-  dplyr:: summarise(counts=n())
+  dplyr:: summarise(counts=n()) %>% 
+  ungroup()
 ```
 
 
@@ -937,17 +1002,17 @@ panel_swing_stacked_19_23 %>%
 I'll export the datasets to a csv file for the analysis.
 
 ```{r}
-#write.csv(panel_19_23, "panel_19_23.csv")
+#write.csv(panel_19_24, "panel_19_24.csv")
 ```
 
 
 ```{r}
-#write.csv(panel19_23_stacked, "panel19_23_stacked.csv")
+#write.csv(panel19_24_stacked, "panel19_24_stacked.csv")
 ```
 
 
 ```{r}
-#write.csv(panel_swing_stacked_19_23, "panel_swing_stacked_19_23.csv")
+#write.csv(panel_swing_stacked_19_24, "panel_swing_stacked_19_24.csv")
 ```
 
 
