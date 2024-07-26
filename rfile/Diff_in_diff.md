@@ -56,14 +56,27 @@ panel19_24_stacked %>%
 
 ## Create treatment variable
 
+We hypothesize that the shock associated with the above-mentioned influx
+has affected left-leaning individuals (our treatment group, post-war)
+differently as compared to right-leaning individuals (our control
+group); in particular we hypothesize that the crisis affected the
+political orientation of the left-leaning group (and moved them to the
+right) and through this channel also affected their propensity to vote.
+The crisis made left-leaning voters become slightly more right-leaning
+and slightly less prone to vote.
+
+We do this by employing an IV Two Way Fixed Effect (TWFE) design using
+the LISS panel data from 2019–2024.
+
 In our case, we need to create a treatment variable - **treatment_23**-
 which takes value 1 when year=2023 or 2024 and the individual is
 left-leaning (i.e. right==0).
 
-The effect of the crisis had not yet take center stage in 2022 at the
-time when the LISS data was collected (Dec 2021-Mar 2022), by waves
-depending on sections of the questionnaire, with the war commencing end
-of Feb 2022. Thus our instrument takes on value 1 when year=2023 or 2024
+For this study, the anticipation of refugee arrivals was captured in the
+2023 data and is reflected in the subsequent years. The effect of the
+crisis had not yet taken center stage in 2022 at the time when the LISS
+data was collected (Dec 2021-Mar 2022), with the war commencing end of
+Feb 2022. Thus our instrument takes on value 1 when year=2023 or 2024
 (not 2022) and the individual is left-leaning.
 
 ``` r
@@ -357,7 +370,7 @@ library(fixest)
 ols_reg <- feols(
   propensity_to_vote ~ political_orientation, # Regression formula
   data=panel19_24_stacked,
-  vcov = "hc1" #--variance-covariance ratio, hc=heterochedasticity-consistent
+  vcov = "hc1" #--variance-covariance ratio, hc=heterockedasticity-consistent
 )
 
 summary(ols_reg)
@@ -374,19 +387,20 @@ summary(ols_reg)
     ## RMSE: 14.6   Adj. R2: 0.002069
 
 Here we obtain a negative and significant coefficient. Increasing
-political orientation by one unit = moving to the right is associated
-with 0.297 lower propensity to vote.
+political orientation by one unit, i.e. moving to the right is
+associated with 0.297 lower propensity to vote.
 
-And a Hausman test, which is highly significant, so we should not use
-the OLS results.
+The Hausman test below helps compare the OLS results against the IV
+regression and assesses the validity of our instrumental variables in
+comarison to the OLS model.
 
 ``` r
 library(ivDiag)
 
-eff_F(panel19_24_stacked, Y = "propensity_to_vote", D = "political_orientation", Z = "treatment_23_left")
+eff_F(panel19_24_stacked, Y = "propensity_to_vote", D = "political_orientation", Z = "treatment_23_left", FE = c("survey_year","nomem_encr"))
 ```
 
-    ## [1] 3185.494
+    ## [1] 9.5458
 
 ``` r
 library(binsreg)
@@ -438,45 +452,7 @@ ddreg_tsls
     ## F-test (1st stage), political_orientation: stat = 1,410.9    , p < 2.2e-16 , on 1 and 8,410 DoF.
     ##                                Wu-Hausman: stat =     1.78247, p = 0.181882, on 1 and 8,409 DoF.
 
-We reject the null hypothesis and conclude that heteroscedasticity is
-present.
-
-``` r
-library(lmtest)
-```
-
-    ## Loading required package: zoo
-
-    ## 
-    ## Attaching package: 'zoo'
-
-    ## The following objects are masked from 'package:base':
-    ## 
-    ##     as.Date, as.Date.numeric
-
-    ## 
-    ## Attaching package: 'lmtest'
-
-    ## The following object is masked from 'package:lfe':
-    ## 
-    ##     waldtest
-
-``` r
-# Perform the Breusch-Pagan test
-bp_test <- bptest(
-  formula = propensity_to_vote ~ political_orientation , 
-  data = panel19_24_stacked
-)
-print(bp_test)
-```
-
-    ## 
-    ##  studentized Breusch-Pagan test
-    ## 
-    ## data:  propensity_to_vote ~ political_orientation
-    ## BP = 6.7947, df = 1, p-value = 0.009143
-
-Anderson-Rubin confidence set: F is pretty close to 10.
+Anderson-Rubin confidence set.
 
 ``` r
 ivres <-ivDiag(panel19_24_stacked, Y="propensity_to_vote", D="political_orientation", Z="treatment_23_left")
@@ -486,7 +462,7 @@ ivres <-ivDiag(panel19_24_stacked, Y="propensity_to_vote", D="political_orientat
 
     ## Parallelising 1000 reps on 7 cores
 
-    ## Bootstrap took16.176sec.
+    ## Bootstrap took16.189sec.
 
     ## AR Test Inversion...
 
@@ -497,7 +473,7 @@ ivres$F_stat
 ```
 
     ##  F.standard    F.robust   F.cluster F.bootstrap F.effective 
-    ##    1410.884    3185.494          NA    3399.354    3185.494
+    ##    1410.884    3185.494          NA    3137.807    3185.494
 
 ``` r
 ivres$AR
@@ -515,6 +491,55 @@ ivres$AR
     ## 
     ## $bounded
     ## [1] TRUE
+
+We can also conduct a Hausman test to compare the fixed-effects model
+against the random-effects model.
+
+``` r
+library(plm)
+```
+
+    ## 
+    ## Attaching package: 'plm'
+
+    ## The following objects are masked from 'package:dplyr':
+    ## 
+    ##     between, lag, lead
+
+    ## The following object is masked from 'package:lfe':
+    ## 
+    ##     sargan
+
+``` r
+# Fixed effects model
+fe_model_plm <- plm(propensity_to_vote ~ political_orientation, 
+                    data = panel19_24_stacked, 
+                    model = "within", 
+                    index = c("nomem_encr", "survey_year"))
+
+# Random effects model using plm
+re_model <- plm(propensity_to_vote ~ political_orientation, 
+                data = panel19_24_stacked, 
+                model = "random", 
+                index = c("nomem_encr", "survey_year"))
+
+# Hausman test
+hausman_test <- phtest(fe_model_plm, re_model)
+
+# Print the results
+print(hausman_test)
+```
+
+    ## 
+    ##  Hausman Test
+    ## 
+    ## data:  propensity_to_vote ~ political_orientation
+    ## chisq = 3.9789, df = 1, p-value = 0.04607
+    ## alternative hypothesis: one model is inconsistent
+
+p-value \< 0.05: Reject the null hypothesis. This indicates that the
+random effects are correlated with the explanatory variables. Therefore,
+the fixed effects model is preferred.
 
 ## TSLS with fixed effects
 
@@ -556,7 +581,7 @@ ivres_fe <- ivDiag(panel19_24_stacked, Y = "propensity_to_vote", D = "political_
 
     ## Parallelising 1000 reps on 7 cores
 
-    ## Bootstrap took50.357sec.
+    ## Bootstrap took50.835sec.
 
     ## AR Test Inversion...
 
@@ -567,7 +592,7 @@ ivres_fe$F_stat
 ```
 
     ##  F.standard    F.robust   F.cluster F.bootstrap F.effective 
-    ##      9.7186      9.5458          NA      9.0702      9.5458
+    ##      9.7186      9.5458          NA      8.4241      9.5458
 
 ``` r
 ivres_fe$AR
@@ -585,6 +610,45 @@ ivres_fe$AR
     ## 
     ## $bounded
     ## [1] TRUE
+
+TSLS with fixed effects and accounting for baseline age.
+
+``` r
+panel19_24_stacked <- panel19_24_stacked %>% 
+  mutate(age_baseline = case_when(survey_year==2019 ~ age,
+                                  survey_year==2020 ~ 0, #age-1,
+                                  survey_year==2021 ~ 0, #age-2,
+                                  survey_year==2022 ~ 0, #age-3,
+                                  survey_year==2023 ~ 0, #age-4,
+                                  survey_year==2024 ~ 0)) #age-5))
+
+feols(
+  propensity_to_vote ~ 1 + age_baseline | survey_year + nomem_encr | political_orientation ~ treatment_23_left + age_baseline, 
+  data = panel19_24_stacked,
+  vcov = "hc1"
+)
+```
+
+    ## The instrument 'age_baseline' has been removed because of collinearity (see $collin.var).
+
+    ## TSLS estimation - Dep. Var.: propensity_to_vote
+    ##                   Endo.    : political_orientation
+    ##                   Instr.   : treatment_23_left, age_baseline
+    ## Second stage: Dep. Var.: propensity_to_vote
+    ## Observations: 8,412
+    ## Fixed-effects: survey_year: 6,  nomem_encr: 1,402
+    ## Standard-errors: Heteroskedasticity-robust 
+    ##                            Estimate Std. Error   t value Pr(>|t|) 
+    ## fit_political_orientation -1.103233   5.715146 -0.193037  0.84694 
+    ## age_baseline               0.033083   0.025945  1.275109  0.20231 
+    ## ... 1 variable was removed because of collinearity (age_baseline)
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## RMSE: 9.77851     Adj. R2:  0.459159
+    ##                 Within R2: -0.003838
+    ## F-test (1st stage), political_orientation: stat = 4.84736 , p = 0.007875, on 2 and 7,003 DoF.
+    ##                                Wu-Hausman: stat = 0.041058, p = 0.839433, on 1 and 7,002 DoF.
+    ##                                    Sargan: stat = 0       , p = 1       , on 1 DoF.
 
 ## Panel with swingers (from left to right)
 
@@ -616,7 +680,7 @@ panel_swingers %>%
     ## `summarise()` has grouped output by 'right'. You can override using the
     ## `.groups` argument.
 
-![](Diff_in_diff_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
+![](Diff_in_diff_files/figure-gfm/unnamed-chunk-30-1.png)<!-- -->
 
 TSLS with fixed effects
 
@@ -658,7 +722,7 @@ ivDiag(panel_swingers, Y = "propensity_to_vote", D = "political_orientation", Z 
 
     ## Parallelising 1000 reps on 7 cores
 
-    ## Bootstrap took52.553sec.
+    ## Bootstrap took52.504sec.
 
     ## AR Test Inversion...
 
@@ -667,14 +731,14 @@ ivDiag(panel_swingers, Y = "propensity_to_vote", D = "political_orientation", Z 
     ## $est_ols
     ##            Coef     SE      t CI 2.5% CI 97.5% p.value
     ## Analytic 0.1469 0.1356 1.0836 -0.1188   0.4127  0.2786
-    ## Boot.c   0.1469 0.1425 1.0313 -0.1269   0.4245  0.3340
-    ## Boot.t   0.1469 0.1356 1.0836 -0.1165   0.4104  0.2720
+    ## Boot.c   0.1469 0.1366 1.0757 -0.1265   0.4209  0.3020
+    ## Boot.t   0.1469 0.1356 1.0836 -0.1144   0.4083  0.2580
     ## 
     ## $est_2sls
     ##            Coef     SE      t CI 2.5% CI 97.5% p.value
     ## Analytic 0.2099 0.6365 0.3298 -1.0377   1.4576  0.7415
-    ## Boot.c   0.2099 0.6774 0.3099 -1.1026   1.4818  0.8060
-    ## Boot.t   0.2099 0.6365 0.3298 -1.0061   1.4260  0.7550
+    ## Boot.c   0.2099 0.6897 0.3044 -1.1334   1.5470  0.7840
+    ## Boot.t   0.2099 0.6365 0.3298 -1.0377   1.4576  0.7520
     ## 
     ## $AR
     ## $AR$Fstat
@@ -693,7 +757,7 @@ ivDiag(panel_swingers, Y = "propensity_to_vote", D = "political_orientation", Z 
     ## 
     ## $F_stat
     ##  F.standard    F.robust   F.cluster F.bootstrap F.effective 
-    ##    419.2041    385.4416          NA    326.1310    385.4416 
+    ##    419.2041    385.4416          NA    332.1724    385.4416 
     ## 
     ## $rho
     ## [1] 0.2
@@ -704,11 +768,11 @@ ivDiag(panel_swingers, Y = "propensity_to_vote", D = "political_orientation", Z 
     ## 
     ## $est_rf
     ##                      Coef     SE p.value   SE.b CI.b2.5% CI.b97.5% p.value.b
-    ## treatment_23_left -0.1344 0.4074  0.7416 0.4317  -0.9431    0.7068     0.806
+    ## treatment_23_left -0.1344 0.4074  0.7416 0.4391   -0.978    0.7365     0.784
     ## 
     ## $est_fs
     ##                    Coef     SE p.value   SE.b CI.b2.5% CI.b97.5% p.value.b
-    ## treatment_23_left -0.64 0.0326       0 0.0354  -0.7076   -0.5693         0
+    ## treatment_23_left -0.64 0.0326       0 0.0351   -0.708    -0.569         0
     ## 
     ## $p_iv
     ## [1] 1
@@ -731,8 +795,11 @@ ivDiag(panel_swingers, Y = "propensity_to_vote", D = "political_orientation", Z 
 
 ## Panel with swingers and using “age” as a covariate (conditional parallel trends)
 
-We can add age because did not change with the Ukraine-Russian war, but
-we will model it as a quadratic function.
+We can add age because it did not change with the Ukraine-Russian war,
+but we will model it as a quadratic function.
+
+In the results from the code below we can see that age as a control
+variable is multi-collinear.
 
 ``` r
 feols(
@@ -763,7 +830,8 @@ feols(
     ##                                Wu-Hausman: stat =   0.011873 , p = 0.913232, on 1 and 10,057 DoF.
     ##                                    Sargan: stat =  -2.682e-12, p = 1       , on 1 DoF.
 
-Now let’s try with a quadratic age control.
+Now let’s try with a quadratic age control. Similar results age^2 is
+also multi-collinear.
 
 ``` r
 feols(
@@ -793,3 +861,63 @@ feols(
     ## F-test (1st stage), political_orientation: stat = 211.2    , p < 2.2e-16 , on 2 and 10,058 DoF.
     ##                                Wu-Hausman: stat =   0.00236, p = 0.961252, on 1 and 10,057 DoF.
     ##                                    Sargan: stat =   0      , p = 1       , on 1 DoF.
+
+We build age as a baseline measure only - so that it only measures age
+in the baseline year and is 0 otherwise.
+
+``` r
+panel_swingers <- panel_swingers %>% 
+  mutate(age_baseline = case_when(survey_year==2019 ~ age,
+                                  survey_year==2020 ~ 0, #age-1,
+                                  survey_year==2021 ~ 0, #age-2,
+                                  survey_year==2022 ~ 0, #age-3,
+                                  survey_year==2023 ~ 0, #age-4,
+                                  survey_year==2024 ~ 0)) #age-5))
+
+panel_swingers %>% 
+  head()
+```
+
+    ## # A tibble: 6 × 9
+    ##    ...1 nomem_encr   age propensity_to_vote political_orientation survey_year
+    ##   <dbl>      <dbl> <dbl>              <dbl>                 <dbl>       <dbl>
+    ## 1     1     800204    76                 50                     3        2019
+    ## 2     2     800204    77                 90                     2        2020
+    ## 3     3     800204    78                 80                     7        2021
+    ## 4     4     800204    79                 70                     5        2022
+    ## 5     5     800204    80                 80                     3        2023
+    ## 6     6     800204    81                 80                     3        2024
+    ## # ℹ 3 more variables: right <dbl>, treatment_23_left <dbl>, age_baseline <dbl>
+
+Now use age_baseline as a covariate for our two-stage least squared
+regression with fixed effects. This does not solve the problem of
+multi-collinearity.
+
+``` r
+feols(
+  propensity_to_vote ~ 1 + age_baseline | survey_year + nomem_encr | political_orientation ~ treatment_23_left + age_baseline, 
+  data = panel_swingers,
+  vcov = "hc1"
+)
+```
+
+    ## The instrument 'age_baseline' has been removed because of collinearity (see $collin.var).
+
+    ## TSLS estimation - Dep. Var.: propensity_to_vote
+    ##                   Endo.    : political_orientation
+    ##                   Instr.   : treatment_23_left, age_baseline
+    ## Second stage: Dep. Var.: propensity_to_vote
+    ## Observations: 12,078
+    ## Fixed-effects: survey_year: 6,  nomem_encr: 2,013
+    ## Standard-errors: Heteroskedasticity-robust 
+    ##                           Estimate Std. Error  t value Pr(>|t|) 
+    ## fit_political_orientation 0.197324   0.636016 0.310250  0.75638 
+    ## age_baseline              0.028161   0.020895 1.347758  0.17777 
+    ## ... 1 variable was removed because of collinearity (age_baseline)
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## RMSE: 10.1     Adj. R2: 0.482126
+    ##              Within R2: 3.668e-4
+    ## F-test (1st stage), political_orientation: stat = 209.6      , p < 2.2e-16 , on 2 and 10,058 DoF.
+    ##                                Wu-Hausman: stat =   0.006255 , p = 0.936962, on 1 and 10,057 DoF.
+    ##                                    Sargan: stat =   2.682e-12, p = 0.999999, on 1 DoF.

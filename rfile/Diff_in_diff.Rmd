@@ -45,9 +45,13 @@ panel19_24_stacked %>%
 
 ## Create treatment variable
 
+We hypothesize that the shock associated with the above-mentioned influx has affected left-leaning individuals (our treatment group, post-war) differently as compared to right-leaning individuals (our control group); in particular we hypothesize that the crisis affected the political orientation of the left-leaning group (and moved them to the right) and through this channel also affected their propensity to vote. The crisis made left-leaning voters become slightly more right-leaning and slightly less prone to vote.
+
+We do this by employing an IV Two Way Fixed Effect (TWFE) design using the LISS panel data from 2019–2024.
+
 In our case, we need to create a treatment variable - **treatment_23**- which takes value 1 when year=2023 or 2024 and the individual is left-leaning (i.e. right==0).
 
-The effect of the crisis had not yet take center stage in 2022 at the time when the LISS data was collected (Dec 2021-Mar 2022), by waves depending on sections of the questionnaire, with the war commencing end of Feb 2022. Thus our instrument takes on value 1 when year=2023 or 2024 (not 2022) and the individual is left-leaning.
+For this study, the anticipation of refugee arrivals was captured in the 2023 data and is reflected in the subsequent years. The effect of the crisis had not yet taken center stage in 2022 at the time when the LISS data was collected (Dec 2021-Mar 2022), with the war commencing end of Feb 2022. Thus our instrument takes on value 1 when year=2023 or 2024 (not 2022) and the individual is left-leaning.
 
 
 
@@ -246,21 +250,22 @@ library(fixest)
 ols_reg <- feols(
   propensity_to_vote ~ political_orientation, # Regression formula
   data=panel19_24_stacked,
-  vcov = "hc1" #--variance-covariance ratio, hc=heterochedasticity-consistent
+  vcov = "hc1" #--variance-covariance ratio, hc=heterockedasticity-consistent
 )
 
 summary(ols_reg)
 ```
 
-Here we obtain a negative and significant coefficient. Increasing political orientation by one unit = moving to the right is associated with 0.297 lower propensity to vote.
+Here we obtain a negative and significant coefficient. Increasing political orientation by one unit, i.e. moving to the right is associated with 0.297 lower propensity to vote.
 
-And a Hausman test, which is highly significant, so we should not use the OLS results.
+The Hausman test below helps compare the OLS results against the IV regression and assesses the validity of our instrumental variables in comarison to the OLS model.
+
 
 
 ```{r}
 library(ivDiag)
 
-eff_F(panel19_24_stacked, Y = "propensity_to_vote", D = "political_orientation", Z = "treatment_23_left")
+eff_F(panel19_24_stacked, Y = "propensity_to_vote", D = "political_orientation", Z = "treatment_23_left", FE = c("survey_year","nomem_encr"))
 ```
 
 
@@ -288,21 +293,9 @@ ddreg_tsls <- feols(
 ddreg_tsls
 ```
 
-We reject the null hypothesis and conclude that heteroscedasticity is present.
-
-```{r}
-library(lmtest)
-
-# Perform the Breusch-Pagan test
-bp_test <- bptest(
-  formula = propensity_to_vote ~ political_orientation , 
-  data = panel19_24_stacked
-)
-print(bp_test)
-```
 
 
-Anderson-Rubin confidence set: F is pretty close to 10.
+Anderson-Rubin confidence set.
 
 ```{r}
 ivres <-ivDiag(panel19_24_stacked, Y="propensity_to_vote", D="political_orientation", Z="treatment_23_left")
@@ -312,6 +305,34 @@ ivres$AR
 ```
 
 
+
+We can also conduct a Hausman test to compare the fixed-effects model against the random-effects model.
+
+```{r}
+library(plm)
+
+# Fixed effects model
+fe_model_plm <- plm(propensity_to_vote ~ political_orientation, 
+                    data = panel19_24_stacked, 
+                    model = "within", 
+                    index = c("nomem_encr", "survey_year"))
+
+# Random effects model using plm
+re_model <- plm(propensity_to_vote ~ political_orientation, 
+                data = panel19_24_stacked, 
+                model = "random", 
+                index = c("nomem_encr", "survey_year"))
+
+# Hausman test
+hausman_test <- phtest(fe_model_plm, re_model)
+
+# Print the results
+print(hausman_test)
+
+```
+
+
+p-value < 0.05: Reject the null hypothesis. This indicates that the random effects are correlated with the explanatory variables. Therefore, the fixed effects model is preferred.
 
 
 ## TSLS with fixed effects 
@@ -337,6 +358,25 @@ ivres_fe$F_stat
 ivres_fe$AR
 ```
 
+
+TSLS with fixed effects and accounting for baseline age.
+
+```{r}
+panel19_24_stacked <- panel19_24_stacked %>% 
+  mutate(age_baseline = case_when(survey_year==2019 ~ age,
+                                  survey_year==2020 ~ 0, #age-1,
+                                  survey_year==2021 ~ 0, #age-2,
+                                  survey_year==2022 ~ 0, #age-3,
+                                  survey_year==2023 ~ 0, #age-4,
+                                  survey_year==2024 ~ 0)) #age-5))
+
+feols(
+  propensity_to_vote ~ 1 + age_baseline | survey_year + nomem_encr | political_orientation ~ treatment_23_left + age_baseline, 
+  data = panel19_24_stacked,
+  vcov = "hc1"
+)
+
+```
 
 
 
@@ -393,7 +433,10 @@ ivDiag(panel_swingers, Y = "propensity_to_vote", D = "political_orientation", Z 
 
 ## Panel with swingers and using "age" as a covariate (conditional parallel trends)
 
-We can add age because did not change with the Ukraine-Russian war, but we will model it as a quadratic function.
+We can add age because it did not change with the Ukraine-Russian war, but we will model it as a quadratic function.
+
+In the results from the code below we can see that age as a control variable is multi-collinear.
+
 
 ```{r}
 feols(
@@ -404,7 +447,7 @@ feols(
 ```
 
 
-Now let's try with a quadratic age control.
+Now let's try with a quadratic age control. Similar results age^2 is also multi-collinear.
 
 
 
@@ -415,4 +458,34 @@ feols(
   vcov = "hc1"
 )
 ```
+
+
+We build age as a baseline measure only - so that it only measures age in the baseline year and is 0 otherwise.
+
+
+```{r}
+panel_swingers <- panel_swingers %>% 
+  mutate(age_baseline = case_when(survey_year==2019 ~ age,
+                                  survey_year==2020 ~ 0, #age-1,
+                                  survey_year==2021 ~ 0, #age-2,
+                                  survey_year==2022 ~ 0, #age-3,
+                                  survey_year==2023 ~ 0, #age-4,
+                                  survey_year==2024 ~ 0)) #age-5))
+
+panel_swingers %>% 
+  head()
+```
+
+
+Now use age_baseline as a covariate for our two-stage least squared regression with fixed effects.
+This does not solve the problem of multi-collinearity.
+
+```{r}
+feols(
+  propensity_to_vote ~ 1 + age_baseline | survey_year + nomem_encr | political_orientation ~ treatment_23_left + age_baseline, 
+  data = panel_swingers,
+  vcov = "hc1"
+)
+```
+
 
